@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Architext</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --cream: #f5f2ef;
+        --warm: #ede8e2;
+        --border: #e1d8d1;
+        --brown: #9b633f;
+        --brown-d: #7f4f30;
+        --brown-l: #c4956a;
+        --dark: #3d2b1f;
+        --mid: #6a5b4f;
+        --muted: #8d7b6f;
+        --white: #ffffff;
+        --sidebar: 248px;
+      }
+
+      html,
+      body {
+        height: 100%;
+        font-family: "DM Sans", sans-serif;
+        background: var(--cream);
+        color: var(--dark);
+        overflow: hidden;
+      }
+
+      /* ── SPLASH ── */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background:
+          linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.55)),
+          url("https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1800&q=80")
+            center/cover no-repeat;
+        transition:
+          opacity 0.7s ease,
+          visibility 0.7s ease;
+      }
+      #splash.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .splash-icon {
+        width: 72px;
+        height: 72px;
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        color: white;
+        margin-bottom: 28px;
+        animation: fadeDown 0.8s ease both;
+      }
+      .splash-title {
+        font-family: "Merriweather", serif;
+        font-size: clamp(3rem, 7vw, 5.5rem);
+        font-weight: 700;
+        color: white;
+        letter-spacing: -1px;
+        line-height: 1;
+        animation: fadeDown 0.8s 0.15s ease both;
+      }
+      .splash-sub {
+        margin-top: 18px;
+        font-size: clamp(0.95rem, 2vw, 1.1rem);
+        color: rgba(255, 255, 255, 0.75);
+        font-weight: 300;
+        max-width: 400px;
+        line-height: 1.65;
+        animation: fadeDown 0.8s 0.3s ease both;
+      }
+      .splash-btn {
+        margin-top: 40px;
+        padding: 15px 44px;
+        background: var(--brown);
+        color: white;
+        border: none;
+        border-radius: 100px;
+        font-family: "Merriweather", serif;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          transform 0.15s;
+        animation: fadeDown 0.8s 0.45s ease both;
+      }
+      .splash-btn:hover {
+        background: var(--brown-d);
+        transform: translateY(-2px);
+      }
+
+      @keyframes fadeDown {
+        from {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── APP SHELL ── */
+      #app {
+        display: flex;
+        height: 100vh;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #app.visible {
+        opacity: 1;
+      }
+
+      /* ── SIDEBAR ── */
+      .sidebar {
+        width: var(--sidebar);
+        min-width: var(--sidebar);
+        background: var(--white);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 22px 20px 18px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-logo-icon {
+        width: 34px;
+        height: 34px;
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        color: var(--brown);
+      }
+      .sidebar-logo-text {
+        font-family: "Merriweather", serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dark);
+      }
+      .sidebar-nav {
+        flex: 1;
+        padding: 14px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 0.88rem;
+        font-weight: 400;
+        color: var(--mid);
+        cursor: pointer;
+        transition: all 0.15s;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        font-family: "DM Sans", sans-serif;
+      }
+      .nav-item i {
+        width: 16px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+      .nav-item:hover {
+        background: var(--cream);
+        color: var(--dark);
+      }
+      .nav-item.active {
+        background: #f3ede8;
+        color: var(--brown);
+        font-weight: 500;
+      }
+      .sidebar-user {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .user-avatar {
+        width: 34px;
+        height: 34px;
+        background: var(--brown);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: white;
+        flex-shrink: 0;
+      }
+      .user-name {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--dark);
+      }
+      .user-plan {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+
+      /* ── MAIN ── */
+      .main {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--cream);
+        padding: 36px 40px;
+      }
+      .page {
+        display: none;
+      }
+      .page.active {
+        display: block;
+      }
+      .page-title {
+        font-family: "Merriweather", serif;
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 6px;
+      }
+      .page-sub {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 28px;
+        font-weight: 300;
+      }
+
+      /* ── CARD ── */
+      .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 26px;
+        margin-bottom: 20px;
+      }
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Merriweather", serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 18px;
+      }
+      .card-title i {
+        color: var(--brown);
+        font-size: 1rem;
+      }
+
+      /* ── TEXTAREA ── */
+      #description {
+        width: 100%;
+        height: 150px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 0.9rem;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 300;
+        resize: none;
+        outline: none;
+        color: var(--dark);
+        line-height: 1.7;
+        background: var(--cream);
+        transition: border-color 0.2s;
+        margin-bottom: 16px;
+      }
+      #description:focus {
+        border-color: var(--brown-l);
+        background: white;
+      }
+      #description::placeholder {
+        color: var(--muted);
+        opacity: 0.7;
+      }
+
+      /* ── EXAMPLES ── */
+      .examples-label {
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .examples-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 18px;
+      }
+      .ex-chip {
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        color: var(--mid);
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+      }
+      .ex-chip:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+        background: #fdf8f4;
+      }
+
+      /* ── BUTTONS ── */
+      .generate-btn {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 10px;
+        background: var(--brown);
+        color: white;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          transform 0.1s;
+        font-family: "DM Sans", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .generate-btn:hover {
+        background: var(--brown-d);
+      }
+      .generate-btn:active {
+        transform: scale(0.99);
+      }
+      .generate-btn:disabled {
+        background: var(--muted);
+        cursor: not-allowed;
+      }
+
+      .add-room-grid {
+        display: grid;
+        grid-template-columns: 1fr 80px 80px;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .input-field {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 0.85rem;
+        font-family: "DM Sans", sans-serif;
+        color: var(--dark);
+        background: var(--cream);
+        outline: none;
+        transition: border-color 0.15s;
+        width: 100%;
+      }
+      .input-field:focus {
+        border-color: var(--brown-l);
+        background: white;
+      }
+      .input-field::placeholder {
+        color: var(--muted);
+        opacity: 0.6;
+      }
+
+      .add-room-btn {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid var(--brown-l);
+        border-radius: 10px;
+        background: transparent;
+        color: var(--brown);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .add-room-btn:hover {
+        background: #fdf8f4;
+      }
+
+      .room-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .room-tag {
+        background: #f3ede8;
+        border: 1px solid #e8ddd6;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        color: var(--brown-d);
+        font-family: "DM Sans", sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .room-tag button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 10px;
+        padding: 0;
+      }
+      .room-tag button:hover {
+        color: #b03030;
+      }
+
+      /* ── OUTPUT ── */
+      .output-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .output-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .icon-btn {
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 0.78rem;
+        color: var(--mid);
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .icon-btn:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+      }
+
+      .output-canvas {
+        min-height: 380px;
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        background: #fdfaf7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+        position: relative;
+        background-image:
+          linear-gradient(rgba(155, 99, 63, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(155, 99, 63, 0.05) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .output-canvas svg {
+        width: 100%;
+        height: auto;
+      }
+      .output-placeholder {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 300;
+        padding: 2rem;
+      }
+      .output-placeholder i {
+        font-size: 2rem;
+        color: var(--border);
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .spinner-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 3rem;
+      }
+      .spinner {
+        width: 36px;
+        height: 36px;
+        border: 2.5px solid var(--border);
+        border-top-color: var(--brown);
+        border-radius: 50%;
+        animation: spin 0.85s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner-wrap p {
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 300;
+      }
+
+      .explanation-card {
+        background: var(--dark);
+        border-radius: 16px;
+        padding: 22px 26px;
+        margin-top: 20px;
+        display: none;
+      }
+      .explanation-card h3 {
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--brown-l);
+        margin-bottom: 14px;
+      }
+      .log-entry {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.6);
+        line-height: 1.55;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-weight: 300;
+      }
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+      .log-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--brown-l);
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      .chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 14px;
+      }
+      .chip {
+        padding: 4px 12px;
+        border-radius: 100px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        border: 1px solid;
+      }
+
+      .error-box {
+        background: #fdf0ee;
+        border: 1px solid #e8c4bc;
+        border-radius: 10px;
+        padding: 14px;
+        font-size: 0.82rem;
+        color: #7a3020;
+        font-weight: 300;
+        margin: 1rem;
+      }
+
+      /* ── HISTORY / SAVED ── */
+      .history-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .history-empty i {
+        font-size: 3rem;
+        color: var(--border);
+        margin-bottom: 16px;
+      }
+      .history-empty p {
+        font-size: 0.85rem;
+        font-weight: 300;
+        max-width: 240px;
+        line-height: 1.6;
+      }
+      .history-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .history-item {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .history-item:hover {
+        border-color: var(--brown-l);
+      }
+      .history-thumb {
+        width: 44px;
+        height: 44px;
+        background: var(--cream);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: var(--brown);
+        flex-shrink: 0;
+      }
+      .history-name {
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--dark);
+      }
+      .history-meta {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-top: 2px;
+        font-weight: 300;
+      }
+      .history-time {
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-weight: 300;
+      }
+
+      /* ── SETTINGS ── */
+      .settings-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      /* ── HELP ── */
+      .help-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 38px;
+        height: 38px;
+        background: var(--brown);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 10px rgba(155, 99, 63, 0.35);
+        transition:
+          background 0.2s,
+          transform 0.15s;
+        z-index: 500;
+      }
+      .help-btn:hover {
+        background: var(--brown-d);
+        transform: scale(1.08);
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ══ SPLASH ══════════════════════════════════════════════════════════════ -->
+    <div id="splash">
+      <div class="splash-icon"><i class="fa-solid fa-house"></i></div>
+      <h1 class="splash-title">Architext</h1>
+      <p class="splash-sub">
+        Transform your words into beautiful, precise floor plans in seconds.
+      </p>
+      <button class="splash-btn" onclick="enterApp()">Start Designing</button>
+    </div>
+
+    <!-- ══ APP ═════════════════════════════════════════════════════════════════ -->
+    <div id="app">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">
+            <i class="fa-solid fa-border-all"></i>
+          </div>
+          <span class="sidebar-logo-text">Architext</span>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="nav-item active" onclick="showPage('home', this)">
+            <i class="fa-solid fa-house"></i> Home
+          </button>
+          <button class="nav-item" onclick="showPage('history', this)">
+            <i class="fa-solid fa-clock-rotate-left"></i> History
+          </button>
+          <button class="nav-item" onclick="showPage('saved', this)">
+            <i class="fa-regular fa-bookmark"></i> Saved
+          </button>
+          <button class="nav-item" onclick="showPage('settings', this)">
+            <i class="fa-solid fa-gear"></i> Settings
+          </button>
+        </nav>
+        <div class="sidebar-user">
+          <div class="user-avatar">U</div>
+          <div>
+            <div class="user-name">User Account</div>
+            <div class="user-plan">Free Plan</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="main">
+        <!-- HOME -->
+        <div id="page-home" class="page active">
+          <h1 class="page-title">Create New Floor Plan</h1>
+          <p class="page-sub">
+            Describe your space in natural language, or add rooms manually.
+          </p>
+
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Describe Your
+              Space
+            </div>
+            <textarea
+              id="description"
+              placeholder="e.g. 3-bedroom house with open-plan kitchen and living room, 2 bathrooms, and a study. Master bedroom with en-suite."
+            ></textarea>
+            <div class="examples-label">Quick examples</div>
+            <div class="examples-row">
+              <span class="ex-chip" onclick="setExample(this)"
+                >2-bed apartment, open kitchen, 1 bathroom, balcony</span
+              >
+              <span class="ex-chip" onclick="setExample(this)"
+                >3-bed house, dining room, 2 bathrooms, garden patio</span
+              >
+              <span class="ex-chip" onclick="setExample(this)"
+                >Studio flat with kitchenette and bathroom</span
+              >
+              <span class="ex-chip" onclick="setExample(this)"
+                >4-bed home, open kitchen-dining, 3 bathrooms, study,
+                garage</span
+              >
+            </div>
+            <button class="generate-btn" id="gen-btn" onclick="generatePlan()">
+              <i class="fa-solid fa-drafting-compass"></i>
+              <span id="gen-label">Generate Floor Plan</span>
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-plus"></i> Add Individual Room
+            </div>
+            <div class="add-room-grid">
+              <input
+                class="input-field"
+                id="room-name"
+                type="text"
+                placeholder="Room name"
+              />
+              <input
+                class="input-field"
+                id="room-w"
+                type="number"
+                placeholder="W"
+                min="1"
+              />
+              <input
+                class="input-field"
+                id="room-h"
+                type="number"
+                placeholder="H"
+                min="1"
+              />
+            </div>
+            <button class="add-room-btn" onclick="addRoom()">
+              <i class="fa-solid fa-plus"></i> Add Room
+            </button>
+            <div class="room-tags" id="room-tags"></div>
+          </div>
+
+          <div class="card">
+            <div class="output-header">
+              <div class="card-title" style="margin-bottom: 0">
+                <i class="fa-solid fa-map"></i> Floor Plan Output
+              </div>
+              <div class="output-actions">
+                <button
+                  class="icon-btn"
+                  id="dl-btn"
+                  style="display: none"
+                  onclick="downloadSVG()"
+                >
+                  <i class="fa-solid fa-download"></i> SVG
+                </button>
+                <button
+                  class="icon-btn"
+                  id="save-btn"
+                  style="display: none"
+                  onclick="savePlan()"
+                >
+                  <i class="fa-regular fa-bookmark"></i> Save
+                </button>
+              </div>
+            </div>
+            <div class="output-canvas" id="output">
+              <div class="output-placeholder">
+                <i class="fa-regular fa-image"></i>Your floor plan will appear
+                here
+              </div>
+            </div>
+            <div class="chips-row" id="chips"></div>
+          </div>
+
+          <div class="explanation-card" id="exp-card">
+            <h3>Layout Decisions</h3>
+            <div id="exp-log"></div>
+          </div>
+        </div>
+
+        <!-- HISTORY -->
+        <div id="page-history" class="page">
+          <h1 class="page-title">History</h1>
+          <p class="page-sub">Your previously generated floor plans.</p>
+          <div id="history-list">
+            <div class="history-empty">
+              <i class="fa-regular fa-clock"></i>
+              <p>No plans generated yet. Head to Home to create your first.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SAVED -->
+        <div id="page-saved" class="page">
+          <h1 class="page-title">Saved</h1>
+          <p class="page-sub">Your bookmarked floor plans.</p>
+          <div id="saved-list">
+            <div class="history-empty">
+              <i class="fa-regular fa-bookmark"></i>
+              <p>
+                Nothing saved yet. Generate a plan and click the bookmark icon.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="page-settings" class="page">
+          <h1 class="page-title">Settings</h1>
+          <p class="page-sub">Manage your preferences.</p>
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-server"></i> Backend URL
+            </div>
+            <p
+              style="
+                font-size: 0.82rem;
+                color: var(--muted);
+                margin-bottom: 14px;
+                font-weight: 300;
+              "
+            >
+              The address where your Flask server is running.
+            </p>
+            <div class="settings-row">
+              <input
+                class="input-field"
+                id="api-url"
+                value="http://127.0.0.1:5000"
+                style="flex: 1"
+              />
+              <button
+                class="add-room-btn"
+                style="width: auto; padding: 0 20px"
+                onclick="saveSettings()"
+              >
+                Save
+              </button>
+            </div>
+            <div
+              id="settings-msg"
+              style="
+                font-size: 0.75rem;
+                color: var(--brown);
+                margin-top: 8px;
+                display: none;
+              "
+            >
+              ✓ Saved
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-circle-info"></i> About
+            </div>
+            <p
+              style="
+                font-size: 0.83rem;
+                color: var(--mid);
+                font-weight: 300;
+                line-height: 1.7;
+              "
+            >
+              Architext v1.0 — Constraint-aware text-to-floor-plan generator.<br />Built
+              with Flask · Python · SVG
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <button class="help-btn" title="Help">
+      <i class="fa-solid fa-question"></i>
+    </button>
+
+    <script>
+      let API_BASE =
+        localStorage.getItem("architext_api") || "http://127.0.0.1:5000";
+
+      const ROOM_COLOURS = {
+        living_room: ["#E1F5EE", "#085041"],
+        bedroom: ["#EEEDFE", "#3C3489"],
+        kitchen: ["#FAEEDA", "#633806"],
+        dining_room: ["#FAF0DA", "#633806"],
+        bathroom: ["#E6F1FB", "#0C447C"],
+        study: ["#EAF3DE", "#27500A"],
+        hallway: ["#F1EFE8", "#444441"],
+        garage: ["#F4F4F0", "#444441"],
+        utility: ["#F0F5EE", "#27500A"],
+        garden: ["#E8F5E1", "#27500A"],
+      };
+      const DEFAULT_C = ["#F5F4F0", "#333333"];
+
+      let historyStore = JSON.parse(
+        localStorage.getItem("architext_history") || "[]",
+      );
+      let savedStore = JSON.parse(
+        localStorage.getItem("architext_saved") || "[]",
+      );
+      let manualRooms = [];
+      let lastPlan = null;
+
+      /* ── SPLASH ── */
+      function enterApp() {
+        document.getElementById("splash").classList.add("hidden");
+        document.getElementById("app").classList.add("visible");
+      }
+
+      /* ── NAVIGATION ── */
+      function showPage(name, btn) {
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        document.getElementById("page-" + name).classList.add("active");
+        btn.classList.add("active");
+        if (name === "history") renderHistory();
+        if (name === "saved") renderSaved();
+        if (name === "settings")
+          document.getElementById("api-url").value = API_BASE;
+      }
+
+      /* ── EXAMPLES ── */
+      function setExample(el) {
+        document.getElementById("description").value = el.textContent.trim();
+      }
+
+      /* ── MANUAL ROOMS ── */
+      function addRoom() {
+        const name = document.getElementById("room-name").value.trim();
+        const w = document.getElementById("room-w").value.trim();
+        const h = document.getElementById("room-h").value.trim();
+        if (!name) return;
+        manualRooms.push({ name, w: w || "?", h: h || "?" });
+        renderRoomTags();
+        const desc = document.getElementById("description");
+        desc.value +=
+          (desc.value ? "\n" : "") +
+          `${name}${w && h ? " " + w + "x" + h : ""}`;
+        document.getElementById("room-name").value = "";
+        document.getElementById("room-w").value = "";
+        document.getElementById("room-h").value = "";
+      }
+
+      function removeRoom(i) {
+        manualRooms.splice(i, 1);
+        renderRoomTags();
+      }
+
+      function renderRoomTags() {
+        document.getElementById("room-tags").innerHTML = manualRooms
+          .map(
+            (r, i) =>
+              `<span class="room-tag">${r.name}${r.w !== "?" ? " " + r.w + "×" + r.h : ""}
+      <button onclick="removeRoom(${i})">✕</button></span>`,
+          )
+          .join("");
+      }
+
+      /* ── GENERATE ── */
+      async function generatePlan() {
+        const description = document.getElementById("description").value.trim();
+        if (!description) return;
+
+        const btn = document.getElementById("gen-btn");
+        const label = document.getElementById("gen-label");
+        btn.disabled = true;
+        label.textContent = "Generating…";
+
+        const output = document.getElementById("output");
+        output.style.backgroundImage =
+          "linear-gradient(rgba(155,99,63,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(155,99,63,0.05) 1px, transparent 1px)";
+        output.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><p>Analysing and building layout…</p></div>`;
+        document.getElementById("exp-card").style.display = "none";
+        document.getElementById("chips").innerHTML = "";
+        document.getElementById("dl-btn").style.display = "none";
+        document.getElementById("save-btn").style.display = "none";
+
+        try {
+          const response = await fetch(`${API_BASE}/api/layout/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: description }),
+          });
+
+          const data = await response.json();
+
+          if (!data.ok) {
+            output.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
+            return;
+          }
+
+          lastPlan = data.plan;
+          renderPlan(data.plan);
+          addToHistory(data.plan, description);
+        } catch (err) {
+          output.innerHTML = `<div class="error-box">
+      Could not reach the Architext server at <strong>${API_BASE}</strong>.<br>
+      Make sure <code>app.py</code> is running on port 5000.<br>
+      <small style="opacity:0.7">${err.message}</small>
+    </div>`;
+        } finally {
+          btn.disabled = false;
+          label.textContent = "Generate Floor Plan";
+        }
+      }
+
+      function renderPlan(plan) {
+        const output = document.getElementById("output");
+        output.style.backgroundImage = "none";
+        output.innerHTML = plan.svg;
+        const svg = output.querySelector("svg");
+        if (svg) {
+          svg.style.width = "100%";
+          svg.style.height = "auto";
+        }
+
+        // Chips
+        document.getElementById("chips").innerHTML = plan.rooms
+          .map((r) => {
+            const [bg, tc] = ROOM_COLOURS[r.room_type] || DEFAULT_C;
+            return `<span class="chip" style="background:${bg};color:${tc};border-color:${tc}40">${r.label}</span>`;
+          })
+          .join("");
+
+        // Explanation
+        if (plan.explanation && plan.explanation.length) {
+          document.getElementById("exp-log").innerHTML = plan.explanation
+            .map(
+              (e) =>
+                `<div class="log-entry"><div class="log-dot"></div><span>${e}</span></div>`,
+            )
+            .join("");
+          document.getElementById("exp-card").style.display = "block";
+        }
+
+        document.getElementById("dl-btn").style.display = "flex";
+        document.getElementById("save-btn").style.display = "flex";
+      }
+
+      /* ── DOWNLOAD ── */
+      function downloadSVG() {
+        const svg = document.querySelector("#output svg");
+        if (!svg) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(
+          new Blob([svg.outerHTML], { type: "image/svg+xml" }),
+        );
+        a.download = "architext-floor-plan.svg";
+        a.click();
+      }
+
+      /* ── SAVE ── */
+      function savePlan() {
+        if (!lastPlan) return;
+        savedStore.unshift({
+          id: Date.now(),
+          title: lastPlan.title,
+          rooms: lastPlan.rooms.length,
+          svg: lastPlan.svg,
+          time: new Date().toLocaleString(),
+        });
+        localStorage.setItem(
+          "architext_saved",
+          JSON.stringify(savedStore.slice(0, 20)),
+        );
+        const btn = document.getElementById("save-btn");
+        btn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Saved!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-regular fa-bookmark"></i> Save';
+        }, 2000);
+      }
+
+      /* ── HISTORY ── */
+      function addToHistory(plan, description) {
+        historyStore.unshift({
+          id: Date.now(),
+          title: plan.title,
+          description: description.slice(0, 80),
+          rooms: plan.rooms.length,
+          svg: plan.svg,
+          time: new Date().toLocaleString(),
+          explanation: plan.explanation,
+        });
+        localStorage.setItem(
+          "architext_history",
+          JSON.stringify(historyStore.slice(0, 30)),
+        );
+      }
+
+      function renderHistory() {
+        const c = document.getElementById("history-list");
+        if (!historyStore.length) {
+          c.innerHTML = `<div class="history-empty"><i class="fa-regular fa-clock"></i><p>No plans generated yet.</p></div>`;
+          return;
+        }
+        c.innerHTML =
+          `<div class="history-grid">` +
+          historyStore
+            .map(
+              (h) =>
+                `<div class="history-item" onclick="loadHistory(${h.id})">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="history-thumb"><i class="fa-solid fa-map"></i></div>
+        <div><div class="history-name">${h.title}</div><div class="history-meta">${h.rooms} rooms · ${h.description}</div></div>
+      </div>
+      <div class="history-time">${h.time}</div>
+    </div>`,
+            )
+            .join("") +
+          `</div>`;
+      }
+
+      function loadHistory(id) {
+        const e = historyStore.find((h) => h.id === id);
+        if (!e) return;
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        document.querySelector(".nav-item").classList.add("active");
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document.getElementById("page-home").classList.add("active");
+        renderPlan({
+          ...e,
+          rooms: Array(e.rooms).fill({ room_type: "bedroom", label: "" }),
+        });
+        document.getElementById("output").innerHTML = e.svg;
+        const svg = document.querySelector("#output svg");
+        if (svg) {
+          svg.style.width = "100%";
+          svg.style.height = "auto";
+        }
+        if (e.explanation) {
+          document.getElementById("exp-log").innerHTML = e.explanation
+            .map(
+              (ex) =>
+                `<div class="log-entry"><div class="log-dot"></div><span>${ex}</span></div>`,
+            )
+            .join("");
+          document.getElementById("exp-card").style.display = "block";
+        }
+        document.getElementById("dl-btn").style.display = "flex";
+      }
+
+      function renderSaved() {
+        const c = document.getElementById("saved-list");
+        if (!savedStore.length) {
+          c.innerHTML = `<div class="history-empty"><i class="fa-regular fa-bookmark"></i><p>Nothing saved yet.</p></div>`;
+          return;
+        }
+        c.innerHTML =
+          `<div class="history-grid">` +
+          savedStore
+            .map(
+              (s) =>
+                `<div class="history-item">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="history-thumb"><i class="fa-solid fa-bookmark"></i></div>
+        <div><div class="history-name">${s.title}</div><div class="history-meta">${s.rooms} rooms</div></div>
+      </div>
+      <div class="history-time">${s.time}</div>
+    </div>`,
+            )
+            .join("") +
+          `</div>`;
+      }
+
+      /* ── SETTINGS ── */
+      function saveSettings() {
+        const val = document.getElementById("api-url").value.trim();
+        if (!val) return;
+        API_BASE = val;
+        localStorage.setItem("architext_api", val);
+        const msg = document.getElementById("settings-msg");
+        msg.style.display = "block";
+        setTimeout(() => (msg.style.display = "none"), 2000);
+      }
+
+      /* ── KEYBOARD SHORTCUT ── */
+      document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") generatePlan();
+      });
+    </script>
+  </body>
+</html>
