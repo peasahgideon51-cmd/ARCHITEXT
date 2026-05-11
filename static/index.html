@@ -11,7 +11,11 @@
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+
     />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       *,
       *::before,
@@ -305,6 +309,21 @@
       .sb-user-plan {
         font-size: 0.7rem;
         color: var(--muted);
+      }
+      .input-error {
+        border-color: #c44 !important;
+        background: #fff4f4 !important;
+      }
+
+      .validation-msg {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fff3f1;
+        border: 1px solid #efc7c0;
+        color: #8a2d1f;
+        font-size: 0.78rem;
+        line-height: 1.5;
       }
 
       /* ══════════════════════════════════════════
@@ -1181,6 +1200,8 @@ Bedroom 14×12
 Bathroom 8×10"
             ></textarea>
 
+            <div id="validation-msg"></div>
+
             <div class="ex-chips">
               <span class="ex-chip" onclick="setEx(this)">Studio example</span>
               <span class="ex-chip" onclick="setEx(this)"
@@ -1246,18 +1267,22 @@ Bathroom 8×10"
                 </div>
               </div>
               <div
-                class="output-actions"
-                id="output-btns"
-                style="display: none !important"
-              >
-                <button class="icon-btn" onclick="downloadSVG()">
-                  <i class="fa-solid fa-download"></i> SVG
-                </button>
-                <button class="icon-btn" onclick="savePlan()">
-                  <i class="fa-regular fa-bookmark"></i> Save
-                </button>
-              </div>
-            </div>
+  class="output-actions"
+  id="output-btns"
+  style="display: none !important"
+>
+  <button class="icon-btn" onclick="exportPlan()">
+    <i class="fa-solid fa-download"></i> Export
+  </button>
+
+  <button class="icon-btn" onclick="downloadSVG()">
+    <i class="fa-solid fa-file-code"></i> SVG
+  </button>
+
+  <button class="icon-btn" onclick="savePlan()">
+    <i class="fa-regular fa-bookmark"></i> Save
+  </button>
+</div>
 
             <div class="output-canvas" id="output-canvas">
               <div class="canvas-placeholder">
@@ -1505,56 +1530,82 @@ Bathroom 8×10"
 
       /* ── GENERATE ── */
       async function generatePlan() {
-        const description = document.getElementById("description").value.trim();
-        if (!description) return;
+  btn.disabled = true;
+  btn.classList.add("active-state");
 
-        const btn = document.getElementById("gen-btn");
-        btn.disabled = true;
-        btn.classList.add("active-state");
-        document.getElementById("gen-label").textContent = "Generating…";
+  document.getElementById("gen-label").textContent = "Generating…";
 
-        const canvas = document.getElementById("output-canvas");
-        canvas.className = "output-canvas";
-        canvas.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><p>Analysing and building layout…</p></div>`;
-        document.getElementById("exp-card").style.display = "none";
-        document.getElementById("chips").innerHTML = "";
-        document
-          .getElementById("output-btns")
-          .style.setProperty("display", "none", "important");
-        document.getElementById("output-sub").textContent = "Generating…";
+  const canvas = document.getElementById("output-canvas");
 
-        try {
-          const res = await fetch(`${API_BASE}/api/layout/generate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: description }),
-          });
+  canvas.className = "output-canvas";
 
-          const data = await res.json();
+  canvas.innerHTML = `
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <p>Analysing and building layout…</p>
+    </div>
+  `;
 
-          if (!data.ok) {
-            canvas.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
-            document.getElementById("output-sub").textContent = "Error";
-            return;
-          }
+  document.getElementById("exp-card").style.display = "none";
+  document.getElementById("chips").innerHTML = "";
 
-          lastPlan = data.plan;
-          renderPlan(data.plan);
-          addToHistory(data.plan, description);
-        } catch (err) {
-          canvas.innerHTML = `<div class="error-box">
-      Could not reach <strong>${API_BASE}</strong>. Make sure <code>app.py</code> is running.<br>
-      <small style="opacity:0.65">${err.message}</small>
-    </div>`;
-          document.getElementById("output-sub").textContent =
-            "Connection error";
-        } finally {
-          btn.disabled = false;
-          btn.classList.remove("active-state");
-          document.getElementById("gen-label").textContent =
-            "Generate Floor Plan";
-        }
-      }
+  document
+    .getElementById("output-btns")
+    .style.setProperty("display", "none", "important");
+
+  document.getElementById("output-sub").textContent = "Generating…";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/layout/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: description,
+        units: units
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      canvas.innerHTML = `
+        <div class="error-box">
+          Error: ${data.error}
+        </div>
+      `;
+
+      document.getElementById("output-sub").textContent = "Error";
+      return;
+    }
+
+    lastPlan = data.plan;
+
+    renderPlan(data.plan);
+
+    addToHistory(data.plan, description);
+
+  } catch (err) {
+    canvas.innerHTML = `
+      <div class="error-box">
+        Could not reach <strong>${API_BASE}</strong>.<br>
+        Make sure Flask is running.
+        <br><br>
+        <small>${err.message}</small>
+      </div>
+    `;
+
+    document.getElementById("output-sub").textContent =
+      "Connection error";
+
+  } finally {
+    btn.disabled = false;
+
+    btn.classList.remove("active-state");
+
+    document.getElementById("gen-label").textContent =
+      "Generate Floor Plan";
+  }
+}
 
       function renderPlan(plan) {
         const canvas = document.getElementById("output-canvas");
@@ -1599,6 +1650,57 @@ Bathroom 8×10"
         a.download = "architext-floor-plan.svg";
         a.click();
       }
+      async function exportPlan() {
+  const canvasEl = document.getElementById("output-canvas");
+
+  if (!canvasEl.querySelector("svg")) return;
+
+  const renderedCanvas = await html2canvas(canvasEl, {
+    backgroundColor: "#ffffff",
+    scale: 2
+  });
+
+  const imgData = renderedCanvas.toDataURL("image/png");
+
+  if (exportFmt === "PNG Image") {
+    const a = document.createElement("a");
+
+    a.href = imgData;
+    a.download = "architext-floor-plan.png";
+
+    a.click();
+
+    return;
+  }
+
+  if (exportFmt === "PDF Document") {
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "px",
+      format: [renderedCanvas.width, renderedCanvas.height]
+    });
+
+    pdf.addImage(
+      imgData,
+      "PNG",
+      0,
+      0,
+      renderedCanvas.width,
+      renderedCanvas.height
+    );
+
+    pdf.save("architext-floor-plan.pdf");
+
+    return;
+  }
+
+  if (exportFmt === "SVG Vector") {
+    downloadSVG();
+  }
+}
+
 
       /* ── SAVE ── */
       function savePlan() {
