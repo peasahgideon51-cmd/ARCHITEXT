@@ -67,12 +67,37 @@ def _wrap_text(text: str, max_chars: int) -> list[str]:
         lines.append(current)
     return lines or [text]
 
-def _area_m2(w: int, h: int) -> str:
-    area = (w / (SCALE * 10)) * (h / (SCALE * 10))
-    return f"{area:.1f} m\u00b2"
+def _convert_dimension(px: int, units: str) -> float:
+    """
+    Converts renderer pixels into display units.
+    Internal layout system uses metres.
+    """
+    metres = px / (SCALE * 10)
 
-def _dim_m(px: int) -> str:
-    return f"{px / (SCALE * 10):.1f}m"
+    if units == "imperial":
+        return metres * 3.28084
+
+    return metres
+
+
+def _area_label(w: int, h: int, units: str) -> str:
+    metres_w = w / (SCALE * 10)
+    metres_h = h / (SCALE * 10)
+
+    if units == "imperial":
+        sqft = metres_w * 3.28084 * metres_h * 3.28084
+        return f"{sqft:.1f} ft²"
+
+    sqm = metres_w * metres_h
+    return f"{sqm:.1f} m²"
+
+
+def _dim_label(px: int, units: str) -> str:
+    value = _convert_dimension(px, units)
+
+    suffix = "ft" if units == "imperial" else "m"
+
+    return f"{value:.1f}{suffix}"
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +264,12 @@ def _north_arrow(out: list[str], x: int, y: int) -> None:
     )
 
 
-def _scale_bar(out: list[str], canvas_w: int, y: int) -> None:
+def _scale_bar(
+    out: list[str],
+    canvas_w: int,
+    y: int,
+    units: str = "metric"
+) -> None:
     """5-segment scale bar: each segment = 1 metre."""
     seg = SCALE * 10   # px per metre
     n   = 5
@@ -256,7 +286,7 @@ def _scale_bar(out: list[str], canvas_w: int, y: int) -> None:
         lx = bx + i * seg
         out.append(
             f'<text x="{lx}" y="{by - 2}" text-anchor="middle" '
-            f'font-size="7" font-family="Courier New,monospace" fill="#555">{i}m</text>'
+            f'font-size="7" font-family="Courier New,monospace" fill="#555">{i}{'ft' if units == 'imperial' else 'm'}</text>'
         )
     out.append(
         f'<text x="{bx + bw//2}" y="{by + 15}" text-anchor="middle" '
@@ -268,7 +298,11 @@ def _scale_bar(out: list[str], canvas_w: int, y: int) -> None:
 # Main renderer
 # ---------------------------------------------------------------------------
 
-def render_svg(layout: GeneratedLayout, title: str = "Floor Plan") -> str:
+def render_svg(
+    layout: GeneratedLayout,
+    title: str = "Floor Plan",
+    units: str = "metric"
+) -> str:
     """Render a GeneratedLayout as an architectural SVG floor plan."""
 
     DIM_MARGIN = 50
@@ -369,7 +403,7 @@ def render_svg(layout: GeneratedLayout, title: str = "Floor Plan") -> str:
 
         # Room name + area label
         label_lines = _wrap_text(ar.room.label, max(6, rw // 9))
-        area        = _area_m2(rw, rh)
+        area = _area_label(rw, rh, units)
         lh          = 14
         total_h     = len(label_lines) * lh + lh  # +1 for area line
         ty          = ry + rh // 2 - total_h // 2 + lh
@@ -391,12 +425,29 @@ def render_svg(layout: GeneratedLayout, title: str = "Floor Plan") -> str:
         )
 
         # Dimension lines
-        _dim_line(out, rx, ry+rh, rx+rw, ry+rh, _dim_m(rw), "bottom")
-        _dim_line(out, rx+rw, ry, rx+rw, ry+rh, _dim_m(rh), "right")
+        _dim_line(
+    out,
+    rx,
+    ry + rh,
+    rx + rw,
+    ry + rh,
+    _dim_label(rw, units),
+    "bottom"
+)
+
+        _dim_line(
+    out,
+    rx + rw,
+    ry,
+    rx + rw,
+    ry + rh,
+    _dim_label(rh, units),
+    "right"
+)
 
     # ── NORTH ARROW + SCALE BAR ─────────────────────────────────────────────
     _north_arrow(out, 26, H - 44)
-    _scale_bar(out, W, H - 22)
+    _scale_bar(out, W, H - 22, units)
 
     # ── WATERMARK ────────────────────────────────────────────────────────────
     out.append(

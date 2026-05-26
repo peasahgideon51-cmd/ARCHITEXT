@@ -11,11 +11,10 @@
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       *,
       *::before,
@@ -48,9 +47,7 @@
         overflow: hidden;
       }
 
-      /* ══════════════════════════════════════════
-   SPLASH
-══════════════════════════════════════════ */
+      /* ── SPLASH ── */
       #splash {
         position: fixed;
         inset: 0;
@@ -138,9 +135,7 @@
         }
       }
 
-      /* ══════════════════════════════════════════
-   APP SHELL
-══════════════════════════════════════════ */
+      /* ── APP SHELL ── */
       #app {
         display: flex;
         height: 100vh;
@@ -151,9 +146,7 @@
         opacity: 1;
       }
 
-      /* ══════════════════════════════════════════
-   SIDEBAR
-══════════════════════════════════════════ */
+      /* ── SIDEBAR ── */
       .sidebar {
         width: 238px;
         min-width: 238px;
@@ -162,7 +155,6 @@
         display: flex;
         flex-direction: column;
       }
-
       .sb-logo {
         display: flex;
         align-items: center;
@@ -196,7 +188,6 @@
         text-transform: uppercase;
         color: var(--muted);
       }
-
       .sb-nav {
         flex: 1;
         padding: 0 10px;
@@ -310,25 +301,8 @@
         font-size: 0.7rem;
         color: var(--muted);
       }
-      .input-error {
-        border-color: #c44 !important;
-        background: #fff4f4 !important;
-      }
 
-      .validation-msg {
-        margin-top: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        background: #fff3f1;
-        border: 1px solid #efc7c0;
-        color: #8a2d1f;
-        font-size: 0.78rem;
-        line-height: 1.5;
-      }
-
-      /* ══════════════════════════════════════════
-   MAIN CONTENT
-══════════════════════════════════════════ */
+      /* ── MAIN ── */
       .main {
         flex: 1;
         overflow-y: auto;
@@ -342,7 +316,6 @@
         display: block;
       }
 
-      /* Page eyebrow */
       .eyebrow {
         display: flex;
         align-items: center;
@@ -354,10 +327,6 @@
         color: var(--muted);
         margin-bottom: 10px;
       }
-      .eyebrow i {
-        font-size: 0.72rem;
-      }
-
       .page-title {
         font-family: "Merriweather", serif;
         font-size: 2rem;
@@ -373,7 +342,6 @@
         font-weight: 300;
       }
 
-      /* ── CARD ── */
       .card {
         background: var(--white);
         border: 1px solid var(--border);
@@ -382,7 +350,6 @@
         margin-bottom: 16px;
       }
 
-      /* ── DESCRIBE CARD header ── */
       .describe-header {
         display: flex;
         align-items: flex-start;
@@ -440,7 +407,6 @@
         opacity: 0.55;
       }
 
-      /* Example chips */
       .ex-chips {
         display: flex;
         flex-wrap: wrap;
@@ -464,7 +430,6 @@
         background: var(--brown-bg);
       }
 
-      /* Generate button — muted style from screenshot */
       .generate-btn {
         width: 100%;
         padding: 13px;
@@ -495,7 +460,6 @@
         color: white;
       }
 
-      /* Add room manually card */
       .add-room-header {
         display: flex;
         align-items: center;
@@ -591,7 +555,7 @@
         color: #b03020;
       }
 
-      /* ── OUTPUT CARD ── */
+      /* ── OUTPUT ── */
       .output-card-header {
         margin-bottom: 14px;
       }
@@ -631,7 +595,37 @@
         color: var(--brown);
       }
 
-      /* Dot-grid canvas */
+      /* ── VIEW TOGGLE ── */
+      .view-toggle {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .view-toggle-btn {
+        padding: 6px 16px;
+        border: 1.5px solid var(--border);
+        border-radius: 100px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--mid);
+        background: white;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .view-toggle-btn.active {
+        border-color: var(--brown);
+        color: var(--brown);
+        background: var(--brown-bg);
+      }
+      .view-toggle-btn:hover:not(.active) {
+        border-color: var(--brown-l);
+        color: var(--brown);
+      }
+
       .output-canvas {
         min-height: 400px;
         border-radius: 10px;
@@ -645,7 +639,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: auto;
+        overflow: hidden;
         position: relative;
       }
       .output-canvas.has-plan {
@@ -656,6 +650,12 @@
       .output-canvas svg {
         width: 100%;
         height: auto;
+      }
+      #three-canvas {
+        width: 100% !important;
+        height: 420px !important;
+        border-radius: 10px;
+        display: block;
       }
 
       .canvas-placeholder {
@@ -724,7 +724,6 @@
         line-height: 1.6;
       }
 
-      /* Room chips */
       .chips-row {
         display: flex;
         flex-wrap: wrap;
@@ -739,7 +738,6 @@
         border: 1px solid;
       }
 
-      /* Explanation */
       .exp-card {
         background: var(--dark);
         border-radius: 14px;
@@ -778,15 +776,12 @@
         flex-shrink: 0;
       }
 
-      /* ══════════════════════════════════════════
-   HISTORY PAGE
-══════════════════════════════════════════ */
+      /* ── HISTORY ── */
       .history-list {
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
-
       .history-item {
         background: var(--white);
         border: 1px solid var(--border);
@@ -804,7 +799,6 @@
         border-color: var(--brown-l);
         box-shadow: 0 2px 10px rgba(155, 99, 63, 0.08);
       }
-
       .h-item-left {
         display: flex;
         align-items: center;
@@ -848,7 +842,6 @@
         font-weight: 500;
         white-space: nowrap;
       }
-
       .history-footer {
         background: #faf7f4;
         border: 1px dashed var(--border);
@@ -860,9 +853,7 @@
         font-weight: 300;
       }
 
-      /* ══════════════════════════════════════════
-   SAVED PAGE
-══════════════════════════════════════════ */
+      /* ── SAVED ── */
       .saved-empty {
         background: var(--white);
         border: 1px solid var(--border);
@@ -900,9 +891,7 @@
         line-height: 1.6;
       }
 
-      /* ══════════════════════════════════════════
-   SETTINGS PAGE
-══════════════════════════════════════════ */
+      /* ── SETTINGS ── */
       .settings-card {
         background: var(--white);
         border: 1px solid var(--border);
@@ -923,7 +912,6 @@
         margin-bottom: 16px;
       }
 
-      /* Radio buttons */
       .radio-group {
         display: flex;
         gap: 8px;
@@ -965,7 +953,6 @@
         box-shadow: inset 0 0 0 2px white;
       }
 
-      /* Format buttons */
       .format-group {
         display: flex;
         gap: 8px;
@@ -993,7 +980,6 @@
         background: var(--brown-bg);
       }
 
-      /* Toggle */
       .toggle-row {
         display: flex;
         align-items: center;
@@ -1029,7 +1015,6 @@
         left: 3px;
       }
 
-      /* Settings backend row */
       .settings-row {
         display: flex;
         gap: 10px;
@@ -1052,9 +1037,6 @@
         color: var(--brown);
       }
 
-      /* ══════════════════════════════════════════
-   HELP BUTTON
-══════════════════════════════════════════ */
       .help-btn {
         position: fixed;
         bottom: 20px;
@@ -1091,10 +1073,21 @@
         background: var(--border);
         border-radius: 10px;
       }
+
+      .validation-msg {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fff3f1;
+        border: 1px solid #efc7c0;
+        color: #8a2d1f;
+        font-size: 0.78rem;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
-    <!-- ══════════════ SPLASH ══════════════ -->
+    <!-- SPLASH -->
     <div id="splash">
       <div class="splash-icon"><i class="fa-solid fa-house"></i></div>
       <h1 class="splash-title">Architext</h1>
@@ -1104,17 +1097,14 @@
       <button class="splash-btn" onclick="enterApp()">Start Designing</button>
     </div>
 
-    <!-- ══════════════ APP ══════════════ -->
+    <!-- APP -->
     <div id="app">
-      <!-- SIDEBAR -->
       <aside class="sidebar">
         <div class="sb-logo">
           <div class="sb-logo-icon"><i class="fa-solid fa-border-all"></i></div>
           <span class="sb-logo-text">Architext</span>
         </div>
-
         <div class="sb-nav-label">Navigation</div>
-
         <nav class="sb-nav">
           <button class="nav-item active" onclick="showPage('home', this)">
             <div class="nav-item-icon"><i class="fa-solid fa-house"></i></div>
@@ -1124,7 +1114,6 @@
             </div>
             <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
           </button>
-
           <button class="nav-item" onclick="showPage('history', this)">
             <div class="nav-item-icon">
               <i class="fa-solid fa-clock-rotate-left"></i>
@@ -1135,7 +1124,6 @@
             </div>
             <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
           </button>
-
           <button class="nav-item" onclick="showPage('saved', this)">
             <div class="nav-item-icon">
               <i class="fa-regular fa-bookmark"></i>
@@ -1146,7 +1134,6 @@
             </div>
             <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
           </button>
-
           <button class="nav-item" onclick="showPage('settings', this)">
             <div class="nav-item-icon"><i class="fa-solid fa-gear"></i></div>
             <div class="nav-item-text">
@@ -1156,7 +1143,6 @@
             <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
           </button>
         </nav>
-
         <div class="sb-user">
           <div class="sb-avatar">A</div>
           <div>
@@ -1166,9 +1152,8 @@
         </div>
       </aside>
 
-      <!-- MAIN -->
       <main class="main">
-        <!-- ══ HOME ══ -->
+        <!-- HOME -->
         <div id="page-home" class="page active">
           <div class="eyebrow">
             <i class="fa-solid fa-border-all"></i> Floor Plan Builder
@@ -1178,7 +1163,6 @@
             Describe rooms in natural language — or add them one by one.
           </p>
 
-          <!-- Describe card -->
           <div class="card">
             <div class="describe-header">
               <div class="describe-icon">
@@ -1187,21 +1171,15 @@
               <div>
                 <div class="describe-title">Describe Your Space</div>
                 <div class="describe-subtitle">
-                  One room per line — name + dimensions
+                  Natural language or room-per-line
                 </div>
               </div>
             </div>
-
             <textarea
               id="description"
-              placeholder="Living Room 20×15
-Kitchen 15×12
-Bedroom 14×12
-Bathroom 8×10"
+              placeholder="e.g. 3-bedroom house with open kitchen, living room, 2 bathrooms and a garage"
             ></textarea>
-
             <div id="validation-msg"></div>
-
             <div class="ex-chips">
               <span class="ex-chip" onclick="setEx(this)">Studio example</span>
               <span class="ex-chip" onclick="setEx(this)"
@@ -1210,14 +1188,12 @@ Bathroom 8×10"
               <span class="ex-chip" onclick="setEx(this)">Office example</span>
               <span class="ex-chip" onclick="setEx(this)">4-Bedroom house</span>
             </div>
-
             <button class="generate-btn" id="gen-btn" onclick="generatePlan()">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
               <span id="gen-label">Generate Floor Plan</span>
             </button>
           </div>
 
-          <!-- Add room manually -->
           <div class="card">
             <div class="add-room-header">
               <i class="fa-solid fa-plus"></i> Add a Room Manually
@@ -1250,7 +1226,6 @@ Bathroom 8×10"
             <div class="room-tags" id="room-tags"></div>
           </div>
 
-          <!-- Output -->
           <div class="card">
             <div
               style="
@@ -1267,22 +1242,39 @@ Bathroom 8×10"
                 </div>
               </div>
               <div
-  class="output-actions"
-  id="output-btns"
-  style="display: none !important"
->
-  <button class="icon-btn" onclick="exportPlan()">
-    <i class="fa-solid fa-download"></i> Export
-  </button>
+                class="output-actions"
+                id="output-btns"
+                style="display: none"
+              >
+                <button class="icon-btn" onclick="exportPlan()">
+                  <i class="fa-solid fa-download"></i> Export
+                </button>
+                <button class="icon-btn" onclick="downloadSVG()">
+                  <i class="fa-solid fa-file-code"></i> SVG
+                </button>
+                <button class="icon-btn" onclick="savePlan()">
+                  <i class="fa-regular fa-bookmark"></i> Save
+                </button>
+              </div>
+            </div>
 
-  <button class="icon-btn" onclick="downloadSVG()">
-    <i class="fa-solid fa-file-code"></i> SVG
-  </button>
-
-  <button class="icon-btn" onclick="savePlan()">
-    <i class="fa-regular fa-bookmark"></i> Save
-  </button>
-</div>
+            <!-- 2D / 3D toggle — hidden until a plan is generated -->
+            <div class="view-toggle" id="view-toggle" style="display: none">
+              <button
+                class="view-toggle-btn active"
+                id="btn-2d"
+                onclick="switchView('2d')"
+              >
+                <i class="fa-solid fa-square"></i> 2D
+              </button>
+              <button
+                class="view-toggle-btn"
+                id="btn-3d"
+                onclick="switchView('3d')"
+              >
+                <i class="fa-solid fa-cube"></i> 3D
+              </button>
+            </div>
 
             <div class="output-canvas" id="output-canvas">
               <div class="canvas-placeholder">
@@ -1296,14 +1288,13 @@ Bathroom 8×10"
             <div class="chips-row" id="chips"></div>
           </div>
 
-          <!-- Explanation -->
           <div class="exp-card" id="exp-card">
             <h3>Layout Decisions</h3>
             <div id="exp-log"></div>
           </div>
         </div>
 
-        <!-- ══ HISTORY ══ -->
+        <!-- HISTORY -->
         <div id="page-history" class="page">
           <div class="eyebrow">
             <i class="fa-solid fa-clock-rotate-left"></i> Recent Activity
@@ -1313,7 +1304,7 @@ Bathroom 8×10"
           <div id="history-list"></div>
         </div>
 
-        <!-- ══ SAVED ══ -->
+        <!-- SAVED -->
         <div id="page-saved" class="page">
           <div class="eyebrow">
             <i class="fa-regular fa-bookmark"></i> Bookmarked
@@ -1323,7 +1314,7 @@ Bathroom 8×10"
           <div id="saved-list"></div>
         </div>
 
-        <!-- ══ SETTINGS ══ -->
+        <!-- SETTINGS -->
         <div id="page-settings" class="page">
           <div class="eyebrow">
             <i class="fa-solid fa-gear"></i> Preferences
@@ -1430,6 +1421,10 @@ Bathroom 8×10"
       let gridOn = localStorage.getItem("architext_grid") !== "false";
       let units = localStorage.getItem("architext_units") || "imperial";
       let exportFmt = localStorage.getItem("architext_fmt") || "PNG Image";
+      let isoCanvas = null,
+        isoRAF = null,
+        isoAngle = 0,
+        isoInteracting = false;
 
       const ROOM_COLOURS = {
         living_room: ["#E1F5EE", "#085041"],
@@ -1464,6 +1459,14 @@ Bathroom 8×10"
       );
       let manualRooms = [];
       let lastPlan = null;
+      let currentView = "2d"; // "2d" | "3d"
+
+      /* Three.js state */
+      let threeRenderer = null,
+        threeScene = null,
+        threeCamera = null,
+        threeControls = null,
+        threeRAF = null;
 
       /* ── SPLASH ── */
       function enterApp() {
@@ -1523,91 +1526,77 @@ Bathroom 8×10"
           .map(
             (r, i) =>
               `<span class="room-tag">${r.name}${r.w && r.h ? " " + r.w + "×" + r.h : ""}
-      <button onclick="removeRoom(${i})">✕</button></span>`,
+             <button onclick="removeRoom(${i})">✕</button></span>`,
           )
           .join("");
       }
 
       /* ── GENERATE ── */
       async function generatePlan() {
-  btn.disabled = true;
-  btn.classList.add("active-state");
+        const btn = document.getElementById("gen-btn"); // FIX 1: declare btn
+        const description = document.getElementById("description").value.trim(); // FIX 2: declare description
 
-  document.getElementById("gen-label").textContent = "Generating…";
+        if (!description) {
+          document.getElementById("validation-msg").innerHTML =
+            '<div class="validation-msg">Please describe your space first.</div>';
+          return;
+        }
+        document.getElementById("validation-msg").innerHTML = "";
 
-  const canvas = document.getElementById("output-canvas");
+        btn.disabled = true;
+        btn.classList.add("active-state");
+        document.getElementById("gen-label").textContent = "Generating…";
 
-  canvas.className = "output-canvas";
+        const canvas = document.getElementById("output-canvas");
+        canvas.className = "output-canvas";
+        canvas.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><p>Analysing and building layout…</p></div>`;
 
-  canvas.innerHTML = `
-    <div class="spinner-wrap">
-      <div class="spinner"></div>
-      <p>Analysing and building layout…</p>
-    </div>
-  `;
+        document.getElementById("exp-card").style.display = "none";
+        document.getElementById("chips").innerHTML = "";
+        document.getElementById("output-btns").style.display = "none";
+        document.getElementById("view-toggle").style.display = "none";
+        document.getElementById("output-sub").textContent = "Generating…";
 
-  document.getElementById("exp-card").style.display = "none";
-  document.getElementById("chips").innerHTML = "";
+        stopThree();
 
-  document
-    .getElementById("output-btns")
-    .style.setProperty("display", "none", "important");
+        try {
+          const res = await fetch(`${API_BASE}/api/layout/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: description, units }), // FIX 3: units passed correctly
+          });
+          const data = await res.json();
 
-  document.getElementById("output-sub").textContent = "Generating…";
+          if (!data.ok) {
+            canvas.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
+            document.getElementById("output-sub").textContent = "Error";
+            return;
+          }
 
-  try {
-    const res = await fetch(`${API_BASE}/api/layout/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: description,
-        units: units
-      }),
-    });
+          lastPlan = data.plan;
+          currentView = "2d";
+          renderPlan(data.plan);
+          addToHistory(data.plan, description);
+        } catch (err) {
+          canvas.innerHTML = `
+            <div class="error-box">
+              Could not reach <strong>${API_BASE}</strong>.<br>
+              Make sure Flask is running.<br><br>
+              <small>${err.message}</small>
+            </div>`;
+          document.getElementById("output-sub").textContent =
+            "Connection error";
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("active-state");
+          document.getElementById("gen-label").textContent =
+            "Generate Floor Plan";
+        }
+      }
 
-    const data = await res.json();
-
-    if (!data.ok) {
-      canvas.innerHTML = `
-        <div class="error-box">
-          Error: ${data.error}
-        </div>
-      `;
-
-      document.getElementById("output-sub").textContent = "Error";
-      return;
-    }
-
-    lastPlan = data.plan;
-
-    renderPlan(data.plan);
-
-    addToHistory(data.plan, description);
-
-  } catch (err) {
-    canvas.innerHTML = `
-      <div class="error-box">
-        Could not reach <strong>${API_BASE}</strong>.<br>
-        Make sure Flask is running.
-        <br><br>
-        <small>${err.message}</small>
-      </div>
-    `;
-
-    document.getElementById("output-sub").textContent =
-      "Connection error";
-
-  } finally {
-    btn.disabled = false;
-
-    btn.classList.remove("active-state");
-
-    document.getElementById("gen-label").textContent =
-      "Generate Floor Plan";
-  }
-}
-
+      /* ── RENDER 2D ── */
       function renderPlan(plan) {
+        stopThree();
         const canvas = document.getElementById("output-canvas");
         canvas.className = "output-canvas has-plan";
         canvas.innerHTML = plan.svg;
@@ -1619,7 +1608,11 @@ Bathroom 8×10"
 
         document.getElementById("output-sub").textContent =
           `${plan.rooms.length} rooms · ${plan.template}`;
-        document.getElementById("output-btns").style.removeProperty("display");
+        document.getElementById("output-btns").style.display = "flex";
+        document.getElementById("view-toggle").style.display = "flex";
+
+        document.getElementById("btn-2d").classList.add("active");
+        document.getElementById("btn-3d").classList.remove("active");
 
         document.getElementById("chips").innerHTML = plan.rooms
           .map((r) => {
@@ -1639,7 +1632,252 @@ Bathroom 8×10"
         }
       }
 
-      /* ── DOWNLOAD ── */
+      /* ── VIEW TOGGLE ── */
+      function switchView(mode) {
+        if (!lastPlan) return;
+        currentView = mode;
+        document
+          .getElementById("btn-2d")
+          .classList.toggle("active", mode === "2d");
+        document
+          .getElementById("btn-3d")
+          .classList.toggle("active", mode === "3d");
+        if (mode === "2d") {
+          renderPlan(lastPlan);
+        } else {
+          render3D(lastPlan);
+        }
+      }
+
+      /* ── RENDER 3D ── */
+      function render3D(plan) {
+        stopThree();
+        const container = document.getElementById("output-canvas");
+        container.className = "output-canvas has-plan";
+        container.innerHTML = "";
+
+        const cvs = document.createElement("canvas");
+        cvs.style.width = "100%";
+        cvs.style.height = "420px";
+        cvs.style.display = "block";
+        cvs.style.borderRadius = "10px";
+        cvs.style.cursor = "grab";
+        container.appendChild(cvs);
+        isoCanvas = cvs;
+
+        function resize() {
+          cvs.width = container.clientWidth || 700;
+          cvs.height = 420;
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        let dragStartX = 0,
+          dragAngle = 0;
+        cvs.addEventListener("mousedown", (e) => {
+          isoInteracting = true;
+          dragStartX = e.clientX;
+          dragAngle = isoAngle;
+          cvs.style.cursor = "grabbing";
+        });
+        cvs.addEventListener("mousemove", (e) => {
+          if (!isoInteracting) return;
+          isoAngle = dragAngle + (e.clientX - dragStartX) * 0.005;
+        });
+        cvs.addEventListener("mouseup", () => {
+          isoInteracting = false;
+          cvs.style.cursor = "grab";
+        });
+        cvs.addEventListener("mouseleave", () => {
+          isoInteracting = false;
+          cvs.style.cursor = "grab";
+        });
+
+        let touchStartX = 0;
+        cvs.addEventListener(
+          "touchstart",
+          (e) => {
+            touchStartX = e.touches[0].clientX;
+            dragAngle = isoAngle;
+          },
+          { passive: true },
+        );
+        cvs.addEventListener(
+          "touchmove",
+          (e) => {
+            isoAngle = dragAngle + (e.touches[0].clientX - touchStartX) * 0.005;
+          },
+          { passive: true },
+        );
+
+        const WALL_H = 60;
+        const rooms = plan.rooms;
+        const offX = plan.canvas.w / 2;
+        const offZ = plan.canvas.h / 2;
+
+        function project(x, y, z, angle, W, H) {
+          const cosA = Math.cos(angle),
+            sinA = Math.sin(angle);
+          const rx = (x - offX) * cosA - (z - offZ) * sinA;
+          const rz = (x - offX) * sinA + (z - offZ) * cosA;
+          const scale =
+            Math.min(W, H) / (Math.max(plan.canvas.w, plan.canvas.h) * 1.1);
+          const sx = W / 2 + rx * scale;
+          const sy = H / 2 - y * scale * 0.55 + rz * scale * 0.4;
+          return { sx, sy };
+        }
+
+        function hexToRgb(hex) {
+          const r = parseInt(hex.slice(1, 3), 16);
+          const g = parseInt(hex.slice(3, 5), 16);
+          const b = parseInt(hex.slice(5, 7), 16);
+          return `${r},${g},${b}`;
+        }
+
+        function drawFrame() {
+          const W = cvs.width,
+            H = cvs.height;
+          const ctx = cvs.getContext("2d");
+          const ang = isoAngle;
+
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = "#fdfaf7";
+          ctx.fillRect(0, 0, W, H);
+
+          rooms.forEach((r) => {
+            const [hexFill, hexStroke] = ROOM_COLOURS[r.room_type] || DEFAULT_C;
+            const rgb = hexToRgb(hexFill);
+            const srgb = hexToRgb(hexStroke);
+
+            const x0 = r.x,
+              x1 = r.x + r.w;
+            const z0 = r.y,
+              z1 = r.y + r.h;
+            const y0 = 0,
+              y1 = WALL_H;
+
+            const corners = [
+              project(x0, y0, z0, ang, W, H),
+              project(x1, y0, z0, ang, W, H),
+              project(x1, y0, z1, ang, W, H),
+              project(x0, y0, z1, ang, W, H),
+              project(x0, y1, z0, ang, W, H),
+              project(x1, y1, z0, ang, W, H),
+              project(x1, y1, z1, ang, W, H),
+              project(x0, y1, z1, ang, W, H),
+            ];
+
+            // Floor
+            ctx.beginPath();
+            [0, 1, 2, 3].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.5)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.4)`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Left face
+            ctx.beginPath();
+            [0, 4, 7, 3].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.75)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.6)`;
+            ctx.stroke();
+
+            // Right face
+            ctx.beginPath();
+            [1, 5, 6, 2].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.6)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.6)`;
+            ctx.stroke();
+
+            // Top face
+            ctx.beginPath();
+            [4, 5, 6, 7].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.95)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.8)`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Label
+            const topCx =
+              (corners[4].sx + corners[5].sx + corners[6].sx + corners[7].sx) /
+              4;
+            const topCy =
+              (corners[4].sy + corners[5].sy + corners[6].sy + corners[7].sy) /
+              4;
+            const label =
+              r.label.length > 14 ? r.label.slice(0, 12) + "…" : r.label;
+            ctx.font = "bold 10px 'Courier New', monospace";
+            const tw = ctx.measureText(label).width;
+            ctx.fillStyle = "rgba(255,255,255,0.82)";
+            if (ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(topCx - tw / 2 - 5, topCy - 8, tw + 10, 16, 4);
+              ctx.fill();
+            } else {
+              ctx.fillRect(topCx - tw / 2 - 5, topCy - 8, tw + 10, 16);
+            }
+            ctx.fillStyle = hexStroke;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, topCx, topCy);
+          });
+
+          // Hint text
+          if (Date.now() - startTime < 3000) {
+            ctx.globalAlpha = Math.max(0, 1 - (Date.now() - startTime) / 3000);
+            ctx.font = "12px 'DM Sans', sans-serif";
+            ctx.fillStyle = "#9d8c80";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText("← drag to rotate →", W / 2, 12);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        const startTime = Date.now();
+
+        function animate() {
+          isoRAF = requestAnimationFrame(animate);
+          if (!isoInteracting) isoAngle += 0.003;
+          drawFrame();
+        }
+        animate();
+      }
+
+      /* Stop / destroy Three.js scene */
+      function stopThree() {
+        if (isoRAF) {
+          cancelAnimationFrame(isoRAF);
+          isoRAF = null;
+        }
+        isoCanvas = null;
+      }
+
+      /* ── EXPORT ── */
       function downloadSVG() {
         const svg = document.querySelector("#output-canvas svg");
         if (!svg) return;
@@ -1650,57 +1888,68 @@ Bathroom 8×10"
         a.download = "architext-floor-plan.svg";
         a.click();
       }
+
       async function exportPlan() {
-  const canvasEl = document.getElementById("output-canvas");
+        const canvasEl = document.getElementById("output-canvas");
 
-  if (!canvasEl.querySelector("svg")) return;
+        if (currentView === "3d" && threeRenderer) {
+          // Export Three.js canvas directly
+          threeRenderer.render(threeScene, threeCamera);
+          const imgData = threeRenderer.domElement.toDataURL("image/png");
+          if (exportFmt === "PDF Document") {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+              orientation: "landscape",
+              unit: "px",
+              format: [
+                threeRenderer.domElement.width,
+                threeRenderer.domElement.height,
+              ],
+            });
+            pdf.addImage(
+              imgData,
+              "PNG",
+              0,
+              0,
+              threeRenderer.domElement.width,
+              threeRenderer.domElement.height,
+            );
+            pdf.save("architext-floor-plan-3d.pdf");
+          } else {
+            const a = document.createElement("a");
+            a.href = imgData;
+            a.download = "architext-floor-plan-3d.png";
+            a.click();
+          }
+          return;
+        }
 
-  const renderedCanvas = await html2canvas(canvasEl, {
-    backgroundColor: "#ffffff",
-    scale: 2
-  });
+        // 2D path
+        if (!canvasEl.querySelector("svg")) return;
+        const rendered = await html2canvas(canvasEl, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+        });
+        const imgData = rendered.toDataURL("image/png");
 
-  const imgData = renderedCanvas.toDataURL("image/png");
-
-  if (exportFmt === "PNG Image") {
-    const a = document.createElement("a");
-
-    a.href = imgData;
-    a.download = "architext-floor-plan.png";
-
-    a.click();
-
-    return;
-  }
-
-  if (exportFmt === "PDF Document") {
-    const { jsPDF } = window.jspdf;
-
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "px",
-      format: [renderedCanvas.width, renderedCanvas.height]
-    });
-
-    pdf.addImage(
-      imgData,
-      "PNG",
-      0,
-      0,
-      renderedCanvas.width,
-      renderedCanvas.height
-    );
-
-    pdf.save("architext-floor-plan.pdf");
-
-    return;
-  }
-
-  if (exportFmt === "SVG Vector") {
-    downloadSVG();
-  }
-}
-
+        if (exportFmt === "PNG Image") {
+          const a = document.createElement("a");
+          a.href = imgData;
+          a.download = "architext-floor-plan.png";
+          a.click();
+        } else if (exportFmt === "PDF Document") {
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({
+            orientation: "landscape",
+            unit: "px",
+            format: [rendered.width, rendered.height],
+          });
+          pdf.addImage(imgData, "PNG", 0, 0, rendered.width, rendered.height);
+          pdf.save("architext-floor-plan.pdf");
+        } else {
+          downloadSVG();
+        }
+      }
 
       /* ── SAVE ── */
       function savePlan() {
@@ -1720,10 +1969,12 @@ Bathroom 8×10"
           "architext_saved",
           JSON.stringify(savedStore.slice(0, 20)),
         );
-        const btn = document.querySelector("#output-btns .icon-btn:last-child");
-        btn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Saved!';
+        const saveBtn = document.querySelector(
+          "#output-btns .icon-btn:last-child",
+        );
+        saveBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Saved!';
         setTimeout(() => {
-          btn.innerHTML = '<i class="fa-regular fa-bookmark"></i> Save';
+          saveBtn.innerHTML = '<i class="fa-regular fa-bookmark"></i> Save';
         }, 2000);
       }
 
@@ -1765,22 +2016,21 @@ Bathroom 8×10"
             .map(
               (h) =>
                 `<div class="history-item" onclick="loadHistory(${h.id})">
-      <div class="h-item-left">
-        <div class="h-thumb"><i class="fa-solid fa-border-all"></i></div>
-        <div>
-          <div class="h-name">${h.title}</div>
-          <div class="h-meta">
-            ${h.rooms} rooms${h.sqft ? ` · ${h.sqft} sq ft` : ""}
-            <span class="h-meta-dot"></span>
-            <i class="fa-regular fa-clock" style="font-size:0.65rem"></i> ${h.time}
-          </div>
-        </div>
-      </div>
-      <span class="h-open">Open →</span>
-    </div>`,
+              <div class="h-item-left">
+                <div class="h-thumb"><i class="fa-solid fa-border-all"></i></div>
+                <div>
+                  <div class="h-name">${h.title}</div>
+                  <div class="h-meta">${h.rooms} rooms${h.sqft ? ` · ${h.sqft} sq ft` : ""}
+                    <span class="h-meta-dot"></span>
+                    <i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${h.time}
+                  </div>
+                </div>
+              </div>
+              <span class="h-open">Open →</span>
+            </div>`,
             )
             .join("") +
-          `</div><div class="history-footer" style="margin-top:10px">Start designing to build your history</div>`;
+          `</div><div class="history-footer" style="margin-top:10px">Showing last ${historyStore.length} plans</div>`;
       }
 
       function loadHistory(id) {
@@ -1794,6 +2044,14 @@ Bathroom 8×10"
           .querySelectorAll(".page")
           .forEach((p) => p.classList.remove("active"));
         document.getElementById("page-home").classList.add("active");
+        lastPlan = {
+          title: e.title,
+          rooms: [],
+          svg: e.svg,
+          explanation: e.explanation,
+          template: "",
+        };
+        currentView = "2d";
         const canvas = document.getElementById("output-canvas");
         canvas.className = "output-canvas has-plan";
         canvas.innerHTML = e.svg;
@@ -1804,7 +2062,8 @@ Bathroom 8×10"
         }
         document.getElementById("output-sub").textContent =
           `${e.rooms} rooms · loaded from history`;
-        document.getElementById("output-btns").style.removeProperty("display");
+        document.getElementById("output-btns").style.display = "flex";
+        document.getElementById("view-toggle").style.display = "none"; // no room data = no 3D
         if (e.explanation) {
           document.getElementById("exp-log").innerHTML = e.explanation
             .map(
@@ -1820,10 +2079,10 @@ Bathroom 8×10"
         const c = document.getElementById("saved-list");
         if (!savedStore.length) {
           c.innerHTML = `<div class="saved-empty">
-      <div class="saved-empty-icon"><i class="fa-regular fa-bookmark"></i></div>
-      <h3>No saved plans yet</h3>
-      <p>Save a floor plan from the builder to access it here anytime.</p>
-    </div>`;
+            <div class="saved-empty-icon"><i class="fa-regular fa-bookmark"></i></div>
+            <h3>No saved plans yet</h3>
+            <p>Save a floor plan from the builder to access it here anytime.</p>
+          </div>`;
           return;
         }
         c.innerHTML =
@@ -1832,14 +2091,16 @@ Bathroom 8×10"
             .map(
               (s) =>
                 `<div class="history-item">
-      <div class="h-item-left">
-        <div class="h-thumb"><i class="fa-regular fa-bookmark"></i></div>
-        <div>
-          <div class="h-name">${s.title}</div>
-          <div class="h-meta">${s.rooms} rooms <span class="h-meta-dot"></span> <i class="fa-regular fa-clock" style="font-size:0.65rem"></i> ${s.time}</div>
-        </div>
-      </div>
-    </div>`,
+              <div class="h-item-left">
+                <div class="h-thumb"><i class="fa-regular fa-bookmark"></i></div>
+                <div>
+                  <div class="h-name">${s.title}</div>
+                  <div class="h-meta">${s.rooms} rooms <span class="h-meta-dot"></span>
+                    <i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${s.time}
+                  </div>
+                </div>
+              </div>
+            </div>`,
             )
             .join("") +
           `</div>`;

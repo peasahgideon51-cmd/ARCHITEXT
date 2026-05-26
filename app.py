@@ -16,7 +16,7 @@ from flask_cors import CORS
 
 from parser.parser import parse, ParsedLayout
 from layout.layout_engine import generate_layout, TEMPLATES
-from renderer.renderer import render_svg
+from renderer.renderer import render_svg, ROOM_COLOURS, DEFAULT_COLOURS # 
 from explanation.explanation import generate_explanation
 
 app = Flask(__name__, static_folder="static")
@@ -122,7 +122,7 @@ def api_layout_generate():
     layout = generate_layout(parsed)
     explanation = generate_explanation(parsed, layout)
 
-    from renderer.renderer import ROOM_COLOURS, DEFAULT_COLOURS
+    
     rooms_out = [
         {
             "label": ar.room.label,
@@ -137,7 +137,11 @@ def api_layout_generate():
         for ar in layout.assigned_rooms
     ]
 
-    svg = render_svg(layout, title=layout.template.name)
+    if isinstance(parsed.preferences, dict):
+         unit_pref = parsed.preferences.get("units", "metric")
+    else:
+        unit_pref = "metric"
+        svg = render_svg(layout, title=layout.template.name, units=unit_pref)
 
     return jsonify({
         "ok": True,
@@ -147,7 +151,7 @@ def api_layout_generate():
             "rooms": rooms_out,
             "adjacencies": [list(p) for p in layout.adjacency_pairs],
             "explanation": explanation,
-            "svg": svg,
+            "svg": render_svg(layout, title=layout.template.name, units=unit_pref),
             "canvas": {"w": layout.canvas_w, "h": layout.canvas_h},
         },
     })
