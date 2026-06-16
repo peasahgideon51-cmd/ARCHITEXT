@@ -1,150 +1,95 @@
-ARCHITEXT
-Project Overview
-This is a school project focused on [briefly describe what the project does here, e.g., architectural text analysis or visualization]. It is built using Python and utilizes a modular structure for parsing and layout.
+# ARCHITEXT
 
-Features
-Core Logic: Handles complex text or data processing via explanation.py and parser.py.
+## Project Overview
 
-Application Entry: The main execution point is app.py.
-
-Structured Layout: Organizes content through dedicated layout and parsing modules.
-
-# Contributing to Architext
-
-Welcome to the Architext project! Please read this guide before making any contributions.
+Architext is a school project focused on architectural floor plan generation and visualization. It is built using Python (Flask) and uses a modular structure for parsing, layout generation, and rendering.
 
 ---
 
-## Team Roles & Areas
-
-| Dev | Area                    | Responsibilities                                        |
-| --- | ----------------------- | ------------------------------------------------------- |
-| 1   | Frontend Development    | Web pages, forms, navigation, dashboards, design viewer |
-| 2   | UI/UX & Design Systems  | Colors, typography, animations, component library       |
-| 3   | Backend/API Development | Flask APIs, authentication, database, business logic    |
-| 4   | AI & Floor Plan Engine  | NLP parser, layout engine, optimization algorithms      |
-| 5   | Visualization & Export  | SVG renderer, 3D models, BIM/CAD export, PDF export     |
-
----
-
-## Branch Structure
+## Folder Structure
 
 ```
-main        ← stable, production-ready (protected, no direct pushes)
-└── dev     ← active development (all PRs merge here first)
-    ├── feature/frontend-*
-    ├── feature/ui-*
-    ├── feature/backend-*
-    ├── feature/ai-engine-*
-    └── feature/visualization-*
+ARCHITEXT/
+├── static/
+│   ├── css/        ← Dev 2 (UI/UX & Design Systems)
+│   │   └── style.css
+│   └── js/         ← Dev 1 (Frontend Development)
+│       └── script.js
+│   └── index.html  ← Dev 1 (Frontend Development)
+├── parser/         ← Dev 4 (AI & Floor Plan Engine)
+├── layout/         ← Dev 4 (AI & Floor Plan Engine)
+├── explanation/    ← Dev 4 (AI & Floor Plan Engine)
+├── renderer/       ← Dev 5 (Visualization & Export)
+├── app.py          ← Dev 3 (Backend/API Development)
+├── requirements.txt
+├── .gitignore
+├── README.md
+└── CONTRIBUTING.md
 ```
 
 ---
 
-## Branch Naming
+## Team Roles
 
-Always branch off `dev`, never `main`.
-
-```
-feature/<your-area>-<short-description>
-```
-
-**Examples:**
-
-- `feature/frontend-dashboard-layout`
-- `feature/backend-auth-endpoint`
-- `feature/ai-room-parser`
-- `feature/ui-component-library`
-- `feature/visualization-svg-export`
-
----
-
-## Commit Message Style
-
-Use clear, descriptive commit messages:
-
-```
-<type>: <short description>
-```
-
-**Types:**
-
-- `feat` – new feature
-- `fix` – bug fix
-- `style` – UI/styling changes
-- `refactor` – code restructure, no functionality change
-- `docs` – documentation updates
-- `test` – adding or updating tests
-
-**Examples:**
-
-- `feat: add floor plan grid renderer`
-- `fix: resolve auth token expiry bug`
-- `style: update dashboard color scheme`
-- `docs: update API endpoint documentation`
-
----
-
-## How to Submit a Pull Request (PR)
-
-1. Make sure you are branched off `dev`:
-
-   ```bash
-   git checkout dev
-   git pull origin dev
-   git checkout -b feature/your-area-description
-   ```
-
-2. Make your changes and commit:
-
-   ```bash
-   git add .
-   git commit -m "feat: describe what you did"
-   ```
-
-3. Push your branch:
-
-   ```bash
-   git push origin feature/your-area-description
-   ```
-
-4. Go to GitHub and open a **Pull Request** from your branch → `dev`
-
-5. Fill in the PR description:
-   - What did you change?
-   - Why?
-   - Any issues or blockers?
-
-6. Request a review from the project lead before merging.
-
----
-
-## General Rules
-
-- **Never push directly to `main` or `dev`** — always use a feature branch and PR
-- **Pull from `dev` regularly** to stay up to date and avoid merge conflicts
-- **One feature per branch** — keep PRs focused and small
-- **Communicate** — if you're working on something, mention it so no one duplicates work
-- **Test before pushing** — make sure your changes don't break existing functionality
+| Dev | Area                    | Folders/Files                        |
+| --- | ----------------------- | ------------------------------------ |
+| 1   | Frontend Development    | `static/js/`, `static/index.html`    |
+| 2   | UI/UX & Design Systems  | `static/css/`                        |
+| 3   | Backend/API Development | `app.py`                             |
+| 4   | AI & Floor Plan Engine  | `parser/`, `layout/`, `explanation/` |
+| 5   | Visualization & Export  | `renderer/`                          |
 
 ---
 
 ## Getting Started
 
-1. Clone the repo:
+### 1. Clone the repo
 
-   ```bash
-   git clone https://github.com/your-username/architext.git
-   ```
+```bash
+git clone https://github.com/peasahgideon51-cmd/ARCHITEXT.git
+cd ARCHITEXT
+```
 
-2. Switch to the `dev` branch:
+### 2. Switch to the `dev` branch
 
-   ```bash
-   git checkout dev
-   ```
+```bash
+git checkout dev
+```
 
-3. Install dependencies and run the project locally (see `README.md` for setup instructions)
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Create your feature branch
+
+Always branch off `dev`, never `main`:
+
+```bash
+git checkout -b feature/your-area-description
+```
+
+**Examples:**
+
+- `feature/frontend-dashboard-layout`
+- `feature/ui-component-library`
+- `feature/backend-auth-endpoint`
+- `feature/ai-room-parser`
+- `feature/visualization-svg-export`
+
+### 5. Run the app locally
+
+```bash
+python app.py
+```
 
 ---
 
-_For questions, reach out to the project lead._
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, commit message style, and how to submit pull requests.
+
+---
+
+_For questions, reach out to the project leader._
