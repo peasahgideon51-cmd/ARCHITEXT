@@ -1,0 +1,2162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Architext</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --cream: #f2ede8;
+        --cream2: #f8f5f1;
+        --border: #e6dfd8;
+        --brown: #9b633f;
+        --brown-d: #7f4f30;
+        --brown-l: #c4956a;
+        --brown-bg: #f0e9e3;
+        --dark: #2d1f14;
+        --mid: #6b5b4e;
+        --muted: #9d8c80;
+        --white: #ffffff;
+      }
+
+      html,
+      body {
+        height: 100%;
+        font-family: "DM Sans", sans-serif;
+        background: var(--cream);
+        color: var(--dark);
+        overflow: hidden;
+      }
+
+      /* ── SPLASH ── */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background:
+          linear-gradient(rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.52)),
+          url("https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1800&q=80")
+            center/cover no-repeat;
+        transition:
+          opacity 0.7s ease,
+          visibility 0.7s ease;
+      }
+      #splash.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .splash-icon {
+        width: 72px;
+        height: 72px;
+        background: rgba(255, 255, 255, 0.13);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: white;
+        margin-bottom: 26px;
+        animation: fd 0.9s ease both;
+      }
+      .splash-title {
+        font-family: "Merriweather", serif;
+        font-size: clamp(3rem, 7vw, 5.5rem);
+        font-weight: 700;
+        color: white;
+        letter-spacing: -1px;
+        line-height: 1;
+        animation: fd 0.9s 0.12s ease both;
+      }
+      .splash-sub {
+        margin-top: 16px;
+        max-width: 380px;
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.72);
+        font-weight: 300;
+        line-height: 1.65;
+        animation: fd 0.9s 0.24s ease both;
+      }
+      .splash-btn {
+        margin-top: 38px;
+        padding: 14px 42px;
+        background: var(--brown);
+        color: white;
+        border: none;
+        border-radius: 100px;
+        font-family: "Merriweather", serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          transform 0.15s;
+        animation: fd 0.9s 0.36s ease both;
+      }
+      .splash-btn:hover {
+        background: var(--brown-d);
+        transform: translateY(-2px);
+      }
+      @keyframes fd {
+        from {
+          opacity: 0;
+          transform: translateY(-16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── APP SHELL ── */
+      #app {
+        display: flex;
+        height: 100vh;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      #app.visible {
+        opacity: 1;
+      }
+
+      /* ── SIDEBAR ── */
+      .sidebar {
+        width: 238px;
+        min-width: 238px;
+        background: var(--cream2);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .sb-logo {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 22px 20px 20px;
+      }
+      .sb-logo-icon {
+        width: 34px;
+        height: 34px;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: var(--brown);
+      }
+      .sb-logo-text {
+        font-family: "Merriweather", serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--dark);
+      }
+
+      .sb-nav-label {
+        padding: 0 20px 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .sb-nav {
+        flex: 1;
+        padding: 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        font-family: "DM Sans", sans-serif;
+        position: relative;
+      }
+      .nav-item-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        color: var(--mid);
+        background: transparent;
+        flex-shrink: 0;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .nav-item-text {
+        flex: 1;
+        margin-left: 10px;
+      }
+      .nav-item-name {
+        display: block;
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--dark);
+        line-height: 1.2;
+      }
+      .nav-item-sub {
+        display: block;
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-weight: 300;
+        margin-top: 1px;
+      }
+      .nav-item-chevron {
+        font-size: 0.65rem;
+        color: var(--muted);
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+
+      .nav-item:hover {
+        background: rgba(155, 99, 63, 0.06);
+      }
+      .nav-item.active {
+        background: var(--brown-bg);
+      }
+      .nav-item.active .nav-item-icon {
+        background: rgba(155, 99, 63, 0.14);
+        color: var(--brown);
+      }
+      .nav-item.active .nav-item-name {
+        color: var(--brown);
+      }
+      .nav-item.active .nav-item-chevron {
+        opacity: 1;
+        color: var(--brown);
+      }
+
+      .sb-user {
+        margin: 10px;
+        padding: 12px 14px;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sb-avatar {
+        width: 32px;
+        height: 32px;
+        background: var(--brown);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: white;
+        flex-shrink: 0;
+      }
+      .sb-user-name {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--dark);
+      }
+      .sb-user-plan {
+        font-size: 0.7rem;
+        color: var(--muted);
+      }
+
+      /* ── MAIN ── */
+      .main {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--cream);
+      }
+      .page {
+        display: none;
+        padding: 32px 36px;
+      }
+      .page.active {
+        display: block;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .page-title {
+        font-family: "Merriweather", serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 6px;
+        line-height: 1.15;
+      }
+      .page-sub {
+        font-size: 0.83rem;
+        color: var(--muted);
+        margin-bottom: 26px;
+        font-weight: 300;
+      }
+
+      .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 16px;
+      }
+
+      .describe-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .describe-icon {
+        width: 36px;
+        height: 36px;
+        background: var(--brown-bg);
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: var(--brown);
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .describe-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--dark);
+      }
+      .describe-subtitle {
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-weight: 300;
+        margin-top: 2px;
+      }
+
+      textarea#description {
+        width: 100%;
+        height: 160px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 0.88rem;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 300;
+        resize: none;
+        outline: none;
+        color: var(--dark);
+        line-height: 1.75;
+        background: #faf8f5;
+        transition: border-color 0.2s;
+        margin-bottom: 14px;
+      }
+      textarea#description:focus {
+        border-color: var(--brown-l);
+        background: white;
+      }
+      textarea#description::placeholder {
+        color: var(--muted);
+        opacity: 0.55;
+      }
+
+      .ex-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 16px;
+      }
+      .ex-chip {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        font-size: 0.75rem;
+        color: var(--mid);
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        background: transparent;
+        transition: all 0.15s;
+      }
+      .ex-chip:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+        background: var(--brown-bg);
+      }
+
+      .generate-btn {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 10px;
+        background: #e8dfd7;
+        color: var(--brown-d);
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: "DM Sans", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .generate-btn:hover {
+        background: var(--brown);
+        color: white;
+      }
+      .generate-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .generate-btn.active-state {
+        background: var(--brown);
+        color: white;
+      }
+
+      .add-room-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 16px;
+      }
+      .add-room-header i {
+        font-size: 0.8rem;
+        color: var(--mid);
+      }
+
+      .input-field {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 11px 14px;
+        font-size: 0.85rem;
+        font-family: "DM Sans", sans-serif;
+        color: var(--dark);
+        background: #faf8f5;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .input-field:focus {
+        border-color: var(--brown-l);
+        background: white;
+      }
+      .input-field::placeholder {
+        color: var(--muted);
+        opacity: 0.6;
+      }
+
+      .dim-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 10px 0;
+      }
+
+      .add-room-btn {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: white;
+        color: var(--mid);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 4px;
+      }
+      .add-room-btn:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+        background: var(--brown-bg);
+      }
+
+      .room-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .room-tag {
+        background: var(--brown-bg);
+        border: 1px solid #e0d4cb;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.73rem;
+        color: var(--brown-d);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .room-tag button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1;
+      }
+      .room-tag button:hover {
+        color: #b03020;
+      }
+
+      /* ── OUTPUT ── */
+      .output-card-header {
+        margin-bottom: 14px;
+      }
+      .output-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--dark);
+      }
+      .output-card-sub {
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-weight: 300;
+        margin-top: 3px;
+      }
+
+      .output-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .icon-btn {
+        padding: 7px 13px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        font-size: 0.75rem;
+        color: var(--mid);
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .icon-btn:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+      }
+
+      /* ── VIEW TOGGLE ── */
+      .view-toggle {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .view-toggle-btn {
+        padding: 6px 16px;
+        border: 1.5px solid var(--border);
+        border-radius: 100px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--mid);
+        background: white;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .view-toggle-btn.active {
+        border-color: var(--brown);
+        color: var(--brown);
+        background: var(--brown-bg);
+      }
+      .view-toggle-btn:hover:not(.active) {
+        border-color: var(--brown-l);
+        color: var(--brown);
+      }
+
+      .output-canvas {
+        min-height: 400px;
+        border-radius: 10px;
+        background-color: #f5f0eb;
+        background-image: radial-gradient(
+          circle,
+          rgba(155, 99, 63, 0.22) 1px,
+          transparent 1px
+        );
+        background-size: 18px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+      .output-canvas.has-plan {
+        background-image: none;
+        background-color: #fdfaf7;
+        align-items: flex-start;
+      }
+      .output-canvas svg {
+        width: 100%;
+        height: auto;
+      }
+      #three-canvas {
+        width: 100% !important;
+        height: 420px !important;
+        border-radius: 10px;
+        display: block;
+      }
+
+      .canvas-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        text-align: center;
+        padding: 3rem;
+      }
+      .canvas-placeholder-icon {
+        width: 56px;
+        height: 56px;
+        background: rgba(155, 99, 63, 0.1);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: var(--brown);
+      }
+      .canvas-placeholder p {
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-weight: 300;
+        line-height: 1.55;
+        max-width: 200px;
+      }
+
+      .spinner-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 4rem;
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        border: 2px solid var(--border);
+        border-top-color: var(--brown);
+        border-radius: 50%;
+        animation: spin 0.85s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner-wrap p {
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-weight: 300;
+      }
+
+      .error-box {
+        background: #fdf0ee;
+        border: 1px solid #e8c4bc;
+        border-radius: 10px;
+        padding: 14px;
+        font-size: 0.8rem;
+        color: #7a3020;
+        font-weight: 300;
+        margin: 1rem;
+        line-height: 1.6;
+      }
+
+      .chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .chip {
+        padding: 4px 12px;
+        border-radius: 100px;
+        font-size: 0.71rem;
+        font-weight: 500;
+        border: 1px solid;
+      }
+
+      .exp-card {
+        background: var(--dark);
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-top: 16px;
+        display: none;
+      }
+      .exp-card h3 {
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--brown-l);
+        margin-bottom: 12px;
+      }
+      .log-entry {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.58);
+        line-height: 1.55;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-weight: 300;
+      }
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+      .log-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--brown-l);
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      /* ── HISTORY ── */
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .history-item {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .history-item:hover {
+        border-color: var(--brown-l);
+        box-shadow: 0 2px 10px rgba(155, 99, 63, 0.08);
+      }
+      .h-item-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .h-thumb {
+        width: 42px;
+        height: 42px;
+        background: var(--brown-bg);
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--brown);
+        flex-shrink: 0;
+      }
+      .h-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--dark);
+      }
+      .h-meta {
+        font-size: 0.73rem;
+        color: var(--muted);
+        margin-top: 3px;
+        font-weight: 300;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .h-meta-dot {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: var(--border);
+      }
+      .h-open {
+        font-size: 0.78rem;
+        color: var(--brown);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .history-footer {
+        background: #faf7f4;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 300;
+      }
+
+      /* ── SAVED ── */
+      .saved-empty {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 60px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .saved-empty-icon {
+        width: 58px;
+        height: 58px;
+        background: var(--brown-bg);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: var(--brown);
+        margin-bottom: 16px;
+      }
+      .saved-empty h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 8px;
+      }
+      .saved-empty p {
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 300;
+        max-width: 220px;
+        line-height: 1.6;
+      }
+
+      /* ── SETTINGS ── */
+      .settings-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 22px 24px;
+        margin-bottom: 12px;
+      }
+      .settings-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 5px;
+      }
+      .settings-sub {
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-weight: 300;
+        margin-bottom: 16px;
+      }
+
+      .radio-group {
+        display: flex;
+        gap: 8px;
+      }
+      .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 16px;
+        border: 1.5px solid var(--border);
+        border-radius: 100px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--mid);
+        transition: all 0.15s;
+      }
+      .radio-option input {
+        display: none;
+      }
+      .radio-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .radio-option.selected {
+        border-color: var(--brown);
+        color: var(--brown);
+      }
+      .radio-option.selected .radio-dot {
+        border-color: var(--brown);
+        background: var(--brown);
+        box-shadow: inset 0 0 0 2px white;
+      }
+
+      .format-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .fmt-btn {
+        padding: 9px 18px;
+        border: 1.5px solid var(--border);
+        border-radius: 9px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--mid);
+        background: white;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+      }
+      .fmt-btn:hover {
+        border-color: var(--brown-l);
+        color: var(--brown);
+      }
+      .fmt-btn.selected {
+        border-color: var(--brown);
+        color: var(--brown);
+        background: var(--brown-bg);
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .toggle {
+        width: 46px;
+        height: 26px;
+        background: var(--brown);
+        border-radius: 100px;
+        position: relative;
+        cursor: pointer;
+        transition: background 0.2s;
+        flex-shrink: 0;
+        border: none;
+      }
+      .toggle.off {
+        background: var(--border);
+      }
+      .toggle::after {
+        content: "";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        top: 3px;
+        right: 3px;
+        transition: right 0.2s;
+      }
+      .toggle.off::after {
+        right: auto;
+        left: 3px;
+      }
+
+      .settings-row {
+        display: flex;
+        gap: 10px;
+      }
+      .settings-save-btn {
+        padding: 0 20px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: white;
+        color: var(--mid);
+        font-size: 0.82rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .settings-save-btn:hover {
+        border-color: var(--brown);
+        color: var(--brown);
+      }
+
+      .help-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 36px;
+        height: 36px;
+        background: var(--brown);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 12px rgba(155, 99, 63, 0.3);
+        z-index: 500;
+        transition:
+          background 0.2s,
+          transform 0.15s;
+      }
+      .help-btn:hover {
+        background: var(--brown-d);
+        transform: scale(1.08);
+      }
+
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 10px;
+      }
+
+      .validation-msg {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fff3f1;
+        border: 1px solid #efc7c0;
+        color: #8a2d1f;
+        font-size: 0.78rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SPLASH -->
+    <div id="splash">
+      <div class="splash-icon"><i class="fa-solid fa-house"></i></div>
+      <h1 class="splash-title">Architext</h1>
+      <p class="splash-sub">
+        Transform your words into beautiful, precise floor plans in seconds.
+      </p>
+      <button class="splash-btn" onclick="enterApp()">Start Designing</button>
+    </div>
+
+    <!-- APP -->
+    <div id="app">
+      <aside class="sidebar">
+        <div class="sb-logo">
+          <div class="sb-logo-icon"><i class="fa-solid fa-border-all"></i></div>
+          <span class="sb-logo-text">Architext</span>
+        </div>
+        <div class="sb-nav-label">Navigation</div>
+        <nav class="sb-nav">
+          <button class="nav-item active" onclick="showPage('home', this)">
+            <div class="nav-item-icon"><i class="fa-solid fa-house"></i></div>
+            <div class="nav-item-text">
+              <span class="nav-item-name">Home</span>
+              <span class="nav-item-sub">New floor plan</span>
+            </div>
+            <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
+          </button>
+          <button class="nav-item" onclick="showPage('history', this)">
+            <div class="nav-item-icon">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div class="nav-item-text">
+              <span class="nav-item-name">History</span>
+              <span class="nav-item-sub">Past designs</span>
+            </div>
+            <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
+          </button>
+          <button class="nav-item" onclick="showPage('saved', this)">
+            <div class="nav-item-icon">
+              <i class="fa-regular fa-bookmark"></i>
+            </div>
+            <div class="nav-item-text">
+              <span class="nav-item-name">Saved</span>
+              <span class="nav-item-sub">Bookmarked plans</span>
+            </div>
+            <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
+          </button>
+          <button class="nav-item" onclick="showPage('settings', this)">
+            <div class="nav-item-icon"><i class="fa-solid fa-gear"></i></div>
+            <div class="nav-item-text">
+              <span class="nav-item-name">Settings</span>
+              <span class="nav-item-sub">Preferences</span>
+            </div>
+            <i class="fa-solid fa-chevron-right nav-item-chevron"></i>
+          </button>
+        </nav>
+        <div class="sb-user">
+          <div class="sb-avatar">A</div>
+          <div>
+            <div class="sb-user-name">Architect</div>
+            <div class="sb-user-plan">Free Plan</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- HOME -->
+        <div id="page-home" class="page active">
+          <div class="eyebrow">
+            <i class="fa-solid fa-border-all"></i> Floor Plan Builder
+          </div>
+          <h1 class="page-title">Design your space</h1>
+          <p class="page-sub">
+            Describe rooms in natural language — or add them one by one.
+          </p>
+
+          <div class="card">
+            <div class="describe-header">
+              <div class="describe-icon">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div>
+                <div class="describe-title">Describe Your Space</div>
+                <div class="describe-subtitle">
+                  Natural language or room-per-line
+                </div>
+              </div>
+            </div>
+            <textarea
+              id="description"
+              placeholder="e.g. 3-bedroom house with open kitchen, living room, 2 bathrooms and a garage"
+            ></textarea>
+            <div id="validation-msg"></div>
+            <div class="ex-chips">
+              <span class="ex-chip" onclick="setEx(this)">Studio example</span>
+              <span class="ex-chip" onclick="setEx(this)"
+                >2-Bedroom example</span
+              >
+              <span class="ex-chip" onclick="setEx(this)">Office example</span>
+              <span class="ex-chip" onclick="setEx(this)">4-Bedroom house</span>
+            </div>
+            <button class="generate-btn" id="gen-btn" onclick="generatePlan()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span id="gen-label">Generate Floor Plan</span>
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="add-room-header">
+              <i class="fa-solid fa-plus"></i> Add a Room Manually
+            </div>
+            <input
+              class="input-field"
+              id="room-name"
+              type="text"
+              placeholder="Room name (e.g. Master Bedroom)"
+            />
+            <div class="dim-row">
+              <input
+                class="input-field"
+                id="room-w"
+                type="number"
+                placeholder="Width (ft)"
+                min="1"
+              />
+              <input
+                class="input-field"
+                id="room-h"
+                type="number"
+                placeholder="Height (ft)"
+                min="1"
+              />
+            </div>
+            <button class="add-room-btn" onclick="addRoom()">
+              <i class="fa-solid fa-plus"></i> Add Room
+            </button>
+            <div class="room-tags" id="room-tags"></div>
+          </div>
+
+          <div class="card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 14px;
+              "
+            >
+              <div class="output-card-header">
+                <div class="output-card-title">Floor Plan Output</div>
+                <div class="output-card-sub" id="output-sub">
+                  Your floor plan will appear here
+                </div>
+              </div>
+              <div
+                class="output-actions"
+                id="output-btns"
+                style="display: none"
+              >
+                <button class="icon-btn" onclick="exportPlan()">
+                  <i class="fa-solid fa-download"></i> Export
+                </button>
+                <button class="icon-btn" onclick="downloadSVG()">
+                  <i class="fa-solid fa-file-code"></i> SVG
+                </button>
+                <button class="icon-btn" onclick="savePlan()">
+                  <i class="fa-regular fa-bookmark"></i> Save
+                </button>
+              </div>
+            </div>
+
+            <!-- 2D / 3D toggle — hidden until a plan is generated -->
+            <div class="view-toggle" id="view-toggle" style="display: none">
+              <button
+                class="view-toggle-btn active"
+                id="btn-2d"
+                onclick="switchView('2d')"
+              >
+                <i class="fa-solid fa-square"></i> 2D
+              </button>
+              <button
+                class="view-toggle-btn"
+                id="btn-3d"
+                onclick="switchView('3d')"
+              >
+                <i class="fa-solid fa-cube"></i> 3D
+              </button>
+            </div>
+
+            <div class="output-canvas" id="output-canvas">
+              <div class="canvas-placeholder">
+                <div class="canvas-placeholder-icon">
+                  <i class="fa-solid fa-border-all"></i>
+                </div>
+                <p>Describe your space<br />to generate a plan</p>
+              </div>
+            </div>
+
+            <div class="chips-row" id="chips"></div>
+          </div>
+
+          <div class="exp-card" id="exp-card">
+            <h3>Layout Decisions</h3>
+            <div id="exp-log"></div>
+          </div>
+        </div>
+
+        <!-- HISTORY -->
+        <div id="page-history" class="page">
+          <div class="eyebrow">
+            <i class="fa-solid fa-clock-rotate-left"></i> Recent Activity
+          </div>
+          <h1 class="page-title">History</h1>
+          <p class="page-sub">Your previously generated floor plans.</p>
+          <div id="history-list"></div>
+        </div>
+
+        <!-- SAVED -->
+        <div id="page-saved" class="page">
+          <div class="eyebrow">
+            <i class="fa-regular fa-bookmark"></i> Bookmarked
+          </div>
+          <h1 class="page-title">Saved Plans</h1>
+          <p class="page-sub">Your bookmarked architectural designs.</p>
+          <div id="saved-list"></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="page-settings" class="page">
+          <div class="eyebrow">
+            <i class="fa-solid fa-gear"></i> Preferences
+          </div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-sub">Manage your application preferences.</p>
+
+          <div class="settings-card">
+            <div class="settings-title">Measurement Units</div>
+            <div class="settings-sub">
+              Choose your preferred unit for floor plan dimensions.
+            </div>
+            <div class="radio-group">
+              <label
+                class="radio-option selected"
+                id="unit-imperial"
+                onclick="selectUnit('imperial')"
+              >
+                <div class="radio-dot"></div>
+                Imperial (ft)
+              </label>
+              <label
+                class="radio-option"
+                id="unit-metric"
+                onclick="selectUnit('metric')"
+              >
+                <div class="radio-dot"></div>
+                Metric (m)
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Default Export Format</div>
+            <div class="settings-sub">
+              File format when exporting floor plans.
+            </div>
+            <div class="format-group">
+              <button class="fmt-btn selected" onclick="selectFmt(this)">
+                PNG Image
+              </button>
+              <button class="fmt-btn" onclick="selectFmt(this)">
+                PDF Document
+              </button>
+              <button class="fmt-btn" onclick="selectFmt(this)">
+                SVG Vector
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Show Grid Overlay</div>
+            <div class="settings-sub">
+              Display measurement grid on the canvas.
+            </div>
+            <div class="toggle-row">
+              <span></span>
+              <button
+                class="toggle"
+                id="grid-toggle"
+                onclick="toggleGrid()"
+              ></button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Backend Server</div>
+            <div class="settings-sub">URL of your running Flask server.</div>
+            <div class="settings-row">
+              <input
+                class="input-field"
+                id="api-url"
+                style="flex: 1"
+                value="http://127.0.0.1:5000"
+              />
+              <button class="settings-save-btn" onclick="saveApiUrl()">
+                Save
+              </button>
+            </div>
+            <div
+              id="settings-msg"
+              style="
+                font-size: 0.72rem;
+                color: var(--brown);
+                margin-top: 7px;
+                display: none;
+              "
+            >
+              ✓ Saved
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <button class="help-btn" title="Help">
+      <i class="fa-solid fa-question"></i>
+    </button>
+
+    <script>
+      /* ── CONFIG ── */
+      let API_BASE =
+        localStorage.getItem("architext_api") || "http://127.0.0.1:5000";
+      let gridOn = localStorage.getItem("architext_grid") !== "false";
+      let units = localStorage.getItem("architext_units") || "imperial";
+      let exportFmt = localStorage.getItem("architext_fmt") || "PNG Image";
+      let isoCanvas = null,
+        isoRAF = null,
+        isoAngle = 0,
+        isoInteracting = false;
+
+      const ROOM_COLOURS = {
+        living_room: ["#E1F5EE", "#085041"],
+        bedroom: ["#EEEDFE", "#3C3489"],
+        kitchen: ["#FAEEDA", "#633806"],
+        dining_room: ["#FAF0DA", "#633806"],
+        bathroom: ["#E6F1FB", "#0C447C"],
+        study: ["#EAF3DE", "#27500A"],
+        hallway: ["#F1EFE8", "#444441"],
+        garage: ["#F4F4F0", "#444441"],
+        utility: ["#F0F5EE", "#27500A"],
+        garden: ["#E8F5E1", "#27500A"],
+      };
+      const DEFAULT_C = ["#F5F4F0", "#333333"];
+
+      const EXAMPLES = {
+        "Studio example":
+          "Studio with kitchenette, bathroom, and open living area",
+        "2-Bedroom example":
+          "2-bedroom apartment with open kitchen, living room, 1 bathroom, and balcony",
+        "Office example":
+          "Office space with open workspace, 2 meeting rooms, kitchen, and bathroom",
+        "4-Bedroom house":
+          "4-bedroom family home with open-plan kitchen-dining, 3 bathrooms, study, utility room, and double garage",
+      };
+
+      let historyStore = JSON.parse(
+        localStorage.getItem("architext_history") || "[]",
+      );
+      let savedStore = JSON.parse(
+        localStorage.getItem("architext_saved") || "[]",
+      );
+      let manualRooms = [];
+      let lastPlan = null;
+      let currentView = "2d"; // "2d" | "3d"
+
+      /* Three.js state */
+      let threeRenderer = null,
+        threeScene = null,
+        threeCamera = null,
+        threeControls = null,
+        threeRAF = null;
+
+      /* ── SPLASH ── */
+      function enterApp() {
+        document.getElementById("splash").classList.add("hidden");
+        document.getElementById("app").classList.add("visible");
+        applySettings();
+      }
+
+      /* ── NAVIGATION ── */
+      function showPage(name, btn) {
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        document.getElementById("page-" + name).classList.add("active");
+        btn.classList.add("active");
+        if (name === "history") renderHistory();
+        if (name === "saved") renderSaved();
+        if (name === "settings") {
+          document.getElementById("api-url").value = API_BASE;
+          applySettings();
+        }
+      }
+
+      /* ── EXAMPLES ── */
+      function setEx(el) {
+        const key = el.textContent.trim();
+        document.getElementById("description").value = EXAMPLES[key] || key;
+      }
+
+      /* ── MANUAL ROOMS ── */
+      function addRoom() {
+        const name = document.getElementById("room-name").value.trim();
+        const w = document.getElementById("room-w").value.trim();
+        const h = document.getElementById("room-h").value.trim();
+        if (!name) return;
+        manualRooms.push({ name, w: w || "", h: h || "" });
+        renderRoomTags();
+        const desc = document.getElementById("description");
+        desc.value +=
+          (desc.value ? "\n" : "") +
+          `${name}${w && h ? " " + w + "x" + h : ""}`;
+        document.getElementById("room-name").value = "";
+        document.getElementById("room-w").value = "";
+        document.getElementById("room-h").value = "";
+      }
+
+      function removeRoom(i) {
+        manualRooms.splice(i, 1);
+        renderRoomTags();
+      }
+
+      function renderRoomTags() {
+        document.getElementById("room-tags").innerHTML = manualRooms
+          .map(
+            (r, i) =>
+              `<span class="room-tag">${r.name}${r.w && r.h ? " " + r.w + "×" + r.h : ""}
+             <button onclick="removeRoom(${i})">✕</button></span>`,
+          )
+          .join("");
+      }
+
+      /* ── GENERATE ── */
+      async function generatePlan() {
+        const btn = document.getElementById("gen-btn"); // FIX 1: declare btn
+        const description = document.getElementById("description").value.trim(); // FIX 2: declare description
+
+        if (!description) {
+          document.getElementById("validation-msg").innerHTML =
+            '<div class="validation-msg">Please describe your space first.</div>';
+          return;
+        }
+        document.getElementById("validation-msg").innerHTML = "";
+
+        btn.disabled = true;
+        btn.classList.add("active-state");
+        document.getElementById("gen-label").textContent = "Generating…";
+
+        const canvas = document.getElementById("output-canvas");
+        canvas.className = "output-canvas";
+        canvas.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><p>Analysing and building layout…</p></div>`;
+
+        document.getElementById("exp-card").style.display = "none";
+        document.getElementById("chips").innerHTML = "";
+        document.getElementById("output-btns").style.display = "none";
+        document.getElementById("view-toggle").style.display = "none";
+        document.getElementById("output-sub").textContent = "Generating…";
+
+        stopThree();
+
+        try {
+          const res = await fetch(`${API_BASE}/api/layout/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: description, units }), // FIX 3: units passed correctly
+          });
+          const data = await res.json();
+
+          if (!data.ok) {
+            canvas.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
+            document.getElementById("output-sub").textContent = "Error";
+            return;
+          }
+
+          lastPlan = data.plan;
+          currentView = "2d";
+          renderPlan(data.plan);
+          addToHistory(data.plan, description);
+        } catch (err) {
+          canvas.innerHTML = `
+            <div class="error-box">
+              Could not reach <strong>${API_BASE}</strong>.<br>
+              Make sure Flask is running.<br><br>
+              <small>${err.message}</small>
+            </div>`;
+          document.getElementById("output-sub").textContent =
+            "Connection error";
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("active-state");
+          document.getElementById("gen-label").textContent =
+            "Generate Floor Plan";
+        }
+      }
+
+      /* ── RENDER 2D ── */
+      function renderPlan(plan) {
+        stopThree();
+        const canvas = document.getElementById("output-canvas");
+        canvas.className = "output-canvas has-plan";
+        canvas.innerHTML = plan.svg;
+        const svg = canvas.querySelector("svg");
+        if (svg) {
+          svg.style.width = "100%";
+          svg.style.height = "auto";
+        }
+
+        document.getElementById("output-sub").textContent =
+          `${plan.rooms.length} rooms · ${plan.template}`;
+        document.getElementById("output-btns").style.display = "flex";
+        document.getElementById("view-toggle").style.display = "flex";
+
+        document.getElementById("btn-2d").classList.add("active");
+        document.getElementById("btn-3d").classList.remove("active");
+
+        document.getElementById("chips").innerHTML = plan.rooms
+          .map((r) => {
+            const [bg, tc] = ROOM_COLOURS[r.room_type] || DEFAULT_C;
+            return `<span class="chip" style="background:${bg};color:${tc};border-color:${tc}40">${r.label}</span>`;
+          })
+          .join("");
+
+        if (plan.explanation && plan.explanation.length) {
+          document.getElementById("exp-log").innerHTML = plan.explanation
+            .map(
+              (e) =>
+                `<div class="log-entry"><div class="log-dot"></div><span>${e}</span></div>`,
+            )
+            .join("");
+          document.getElementById("exp-card").style.display = "block";
+        }
+      }
+
+      /* ── VIEW TOGGLE ── */
+      function switchView(mode) {
+        if (!lastPlan) return;
+        currentView = mode;
+        document
+          .getElementById("btn-2d")
+          .classList.toggle("active", mode === "2d");
+        document
+          .getElementById("btn-3d")
+          .classList.toggle("active", mode === "3d");
+        if (mode === "2d") {
+          renderPlan(lastPlan);
+        } else {
+          render3D(lastPlan);
+        }
+      }
+
+      /* ── RENDER 3D ── */
+      function render3D(plan) {
+        stopThree();
+        const container = document.getElementById("output-canvas");
+        container.className = "output-canvas has-plan";
+        container.innerHTML = "";
+
+        const cvs = document.createElement("canvas");
+        cvs.style.width = "100%";
+        cvs.style.height = "420px";
+        cvs.style.display = "block";
+        cvs.style.borderRadius = "10px";
+        cvs.style.cursor = "grab";
+        container.appendChild(cvs);
+        isoCanvas = cvs;
+
+        function resize() {
+          cvs.width = container.clientWidth || 700;
+          cvs.height = 420;
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        let dragStartX = 0,
+          dragAngle = 0;
+        cvs.addEventListener("mousedown", (e) => {
+          isoInteracting = true;
+          dragStartX = e.clientX;
+          dragAngle = isoAngle;
+          cvs.style.cursor = "grabbing";
+        });
+        cvs.addEventListener("mousemove", (e) => {
+          if (!isoInteracting) return;
+          isoAngle = dragAngle + (e.clientX - dragStartX) * 0.005;
+        });
+        cvs.addEventListener("mouseup", () => {
+          isoInteracting = false;
+          cvs.style.cursor = "grab";
+        });
+        cvs.addEventListener("mouseleave", () => {
+          isoInteracting = false;
+          cvs.style.cursor = "grab";
+        });
+
+        let touchStartX = 0;
+        cvs.addEventListener(
+          "touchstart",
+          (e) => {
+            touchStartX = e.touches[0].clientX;
+            dragAngle = isoAngle;
+          },
+          { passive: true },
+        );
+        cvs.addEventListener(
+          "touchmove",
+          (e) => {
+            isoAngle = dragAngle + (e.touches[0].clientX - touchStartX) * 0.005;
+          },
+          { passive: true },
+        );
+
+        const WALL_H = 60;
+        const rooms = plan.rooms;
+        const offX = plan.canvas.w / 2;
+        const offZ = plan.canvas.h / 2;
+
+        function project(x, y, z, angle, W, H) {
+          const cosA = Math.cos(angle),
+            sinA = Math.sin(angle);
+          const rx = (x - offX) * cosA - (z - offZ) * sinA;
+          const rz = (x - offX) * sinA + (z - offZ) * cosA;
+          const scale =
+            Math.min(W, H) / (Math.max(plan.canvas.w, plan.canvas.h) * 1.1);
+          const sx = W / 2 + rx * scale;
+          const sy = H / 2 - y * scale * 0.55 + rz * scale * 0.4;
+          return { sx, sy };
+        }
+
+        function hexToRgb(hex) {
+          const r = parseInt(hex.slice(1, 3), 16);
+          const g = parseInt(hex.slice(3, 5), 16);
+          const b = parseInt(hex.slice(5, 7), 16);
+          return `${r},${g},${b}`;
+        }
+
+        function drawFrame() {
+          const W = cvs.width,
+            H = cvs.height;
+          const ctx = cvs.getContext("2d");
+          const ang = isoAngle;
+
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = "#fdfaf7";
+          ctx.fillRect(0, 0, W, H);
+
+          rooms.forEach((r) => {
+            const [hexFill, hexStroke] = ROOM_COLOURS[r.room_type] || DEFAULT_C;
+            const rgb = hexToRgb(hexFill);
+            const srgb = hexToRgb(hexStroke);
+
+            const x0 = r.x,
+              x1 = r.x + r.w;
+            const z0 = r.y,
+              z1 = r.y + r.h;
+            const y0 = 0,
+              y1 = WALL_H;
+
+            const corners = [
+              project(x0, y0, z0, ang, W, H),
+              project(x1, y0, z0, ang, W, H),
+              project(x1, y0, z1, ang, W, H),
+              project(x0, y0, z1, ang, W, H),
+              project(x0, y1, z0, ang, W, H),
+              project(x1, y1, z0, ang, W, H),
+              project(x1, y1, z1, ang, W, H),
+              project(x0, y1, z1, ang, W, H),
+            ];
+
+            // Floor
+            ctx.beginPath();
+            [0, 1, 2, 3].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.5)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.4)`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Left face
+            ctx.beginPath();
+            [0, 4, 7, 3].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.75)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.6)`;
+            ctx.stroke();
+
+            // Right face
+            ctx.beginPath();
+            [1, 5, 6, 2].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.6)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.6)`;
+            ctx.stroke();
+
+            // Top face
+            ctx.beginPath();
+            [4, 5, 6, 7].forEach((i, idx) =>
+              idx === 0
+                ? ctx.moveTo(corners[i].sx, corners[i].sy)
+                : ctx.lineTo(corners[i].sx, corners[i].sy),
+            );
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${rgb},0.95)`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(${srgb},0.8)`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Label
+            const topCx =
+              (corners[4].sx + corners[5].sx + corners[6].sx + corners[7].sx) /
+              4;
+            const topCy =
+              (corners[4].sy + corners[5].sy + corners[6].sy + corners[7].sy) /
+              4;
+            const label =
+              r.label.length > 14 ? r.label.slice(0, 12) + "…" : r.label;
+            ctx.font = "bold 10px 'Courier New', monospace";
+            const tw = ctx.measureText(label).width;
+            ctx.fillStyle = "rgba(255,255,255,0.82)";
+            if (ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(topCx - tw / 2 - 5, topCy - 8, tw + 10, 16, 4);
+              ctx.fill();
+            } else {
+              ctx.fillRect(topCx - tw / 2 - 5, topCy - 8, tw + 10, 16);
+            }
+            ctx.fillStyle = hexStroke;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, topCx, topCy);
+          });
+
+          // Hint text
+          if (Date.now() - startTime < 3000) {
+            ctx.globalAlpha = Math.max(0, 1 - (Date.now() - startTime) / 3000);
+            ctx.font = "12px 'DM Sans', sans-serif";
+            ctx.fillStyle = "#9d8c80";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText("← drag to rotate →", W / 2, 12);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        const startTime = Date.now();
+
+        function animate() {
+          isoRAF = requestAnimationFrame(animate);
+          if (!isoInteracting) isoAngle += 0.003;
+          drawFrame();
+        }
+        animate();
+      }
+
+      /* Stop / destroy Three.js scene */
+      function stopThree() {
+        if (isoRAF) {
+          cancelAnimationFrame(isoRAF);
+          isoRAF = null;
+        }
+        isoCanvas = null;
+      }
+
+      /* ── EXPORT ── */
+      function downloadSVG() {
+        const svg = document.querySelector("#output-canvas svg");
+        if (!svg) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(
+          new Blob([svg.outerHTML], { type: "image/svg+xml" }),
+        );
+        a.download = "architext-floor-plan.svg";
+        a.click();
+      }
+
+      async function exportPlan() {
+        const canvasEl = document.getElementById("output-canvas");
+
+        if (currentView === "3d" && threeRenderer) {
+          // Export Three.js canvas directly
+          threeRenderer.render(threeScene, threeCamera);
+          const imgData = threeRenderer.domElement.toDataURL("image/png");
+          if (exportFmt === "PDF Document") {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+              orientation: "landscape",
+              unit: "px",
+              format: [
+                threeRenderer.domElement.width,
+                threeRenderer.domElement.height,
+              ],
+            });
+            pdf.addImage(
+              imgData,
+              "PNG",
+              0,
+              0,
+              threeRenderer.domElement.width,
+              threeRenderer.domElement.height,
+            );
+            pdf.save("architext-floor-plan-3d.pdf");
+          } else {
+            const a = document.createElement("a");
+            a.href = imgData;
+            a.download = "architext-floor-plan-3d.png";
+            a.click();
+          }
+          return;
+        }
+
+        // 2D path
+        if (!canvasEl.querySelector("svg")) return;
+        const rendered = await html2canvas(canvasEl, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+        });
+        const imgData = rendered.toDataURL("image/png");
+
+        if (exportFmt === "PNG Image") {
+          const a = document.createElement("a");
+          a.href = imgData;
+          a.download = "architext-floor-plan.png";
+          a.click();
+        } else if (exportFmt === "PDF Document") {
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({
+            orientation: "landscape",
+            unit: "px",
+            format: [rendered.width, rendered.height],
+          });
+          pdf.addImage(imgData, "PNG", 0, 0, rendered.width, rendered.height);
+          pdf.save("architext-floor-plan.pdf");
+        } else {
+          downloadSVG();
+        }
+      }
+
+      /* ── SAVE ── */
+      function savePlan() {
+        if (!lastPlan) return;
+        savedStore.unshift({
+          id: Date.now(),
+          title: lastPlan.title,
+          rooms: lastPlan.rooms.length,
+          svg: lastPlan.svg,
+          time: new Date().toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+        });
+        localStorage.setItem(
+          "architext_saved",
+          JSON.stringify(savedStore.slice(0, 20)),
+        );
+        const saveBtn = document.querySelector(
+          "#output-btns .icon-btn:last-child",
+        );
+        saveBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Saved!';
+        setTimeout(() => {
+          saveBtn.innerHTML = '<i class="fa-regular fa-bookmark"></i> Save';
+        }, 2000);
+      }
+
+      /* ── HISTORY ── */
+      function addToHistory(plan, description) {
+        const sqft = plan.rooms.reduce(
+          (s, r) => s + Math.round((r.w / 10) * (r.h / 10)),
+          0,
+        );
+        historyStore.unshift({
+          id: Date.now(),
+          title: plan.title,
+          description: description.slice(0, 70),
+          rooms: plan.rooms.length,
+          sqft,
+          svg: plan.svg,
+          explanation: plan.explanation,
+          time: new Date().toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+        });
+        localStorage.setItem(
+          "architext_history",
+          JSON.stringify(historyStore.slice(0, 30)),
+        );
+      }
+
+      function renderHistory() {
+        const c = document.getElementById("history-list");
+        if (!historyStore.length) {
+          c.innerHTML = `<div class="history-footer">No plans yet — start designing to build your history</div>`;
+          return;
+        }
+        c.innerHTML =
+          `<div class="history-list">` +
+          historyStore
+            .map(
+              (h) =>
+                `<div class="history-item" onclick="loadHistory(${h.id})">
+              <div class="h-item-left">
+                <div class="h-thumb"><i class="fa-solid fa-border-all"></i></div>
+                <div>
+                  <div class="h-name">${h.title}</div>
+                  <div class="h-meta">${h.rooms} rooms${h.sqft ? ` · ${h.sqft} sq ft` : ""}
+                    <span class="h-meta-dot"></span>
+                    <i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${h.time}
+                  </div>
+                </div>
+              </div>
+              <span class="h-open">Open →</span>
+            </div>`,
+            )
+            .join("") +
+          `</div><div class="history-footer" style="margin-top:10px">Showing last ${historyStore.length} plans</div>`;
+      }
+
+      function loadHistory(id) {
+        const e = historyStore.find((h) => h.id === id);
+        if (!e) return;
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        document.querySelector(".nav-item").classList.add("active");
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document.getElementById("page-home").classList.add("active");
+        lastPlan = {
+          title: e.title,
+          rooms: [],
+          svg: e.svg,
+          explanation: e.explanation,
+          template: "",
+        };
+        currentView = "2d";
+        const canvas = document.getElementById("output-canvas");
+        canvas.className = "output-canvas has-plan";
+        canvas.innerHTML = e.svg;
+        const svg = canvas.querySelector("svg");
+        if (svg) {
+          svg.style.width = "100%";
+          svg.style.height = "auto";
+        }
+        document.getElementById("output-sub").textContent =
+          `${e.rooms} rooms · loaded from history`;
+        document.getElementById("output-btns").style.display = "flex";
+        document.getElementById("view-toggle").style.display = "none"; // no room data = no 3D
+        if (e.explanation) {
+          document.getElementById("exp-log").innerHTML = e.explanation
+            .map(
+              (ex) =>
+                `<div class="log-entry"><div class="log-dot"></div><span>${ex}</span></div>`,
+            )
+            .join("");
+          document.getElementById("exp-card").style.display = "block";
+        }
+      }
+
+      function renderSaved() {
+        const c = document.getElementById("saved-list");
+        if (!savedStore.length) {
+          c.innerHTML = `<div class="saved-empty">
+            <div class="saved-empty-icon"><i class="fa-regular fa-bookmark"></i></div>
+            <h3>No saved plans yet</h3>
+            <p>Save a floor plan from the builder to access it here anytime.</p>
+          </div>`;
+          return;
+        }
+        c.innerHTML =
+          `<div class="history-list">` +
+          savedStore
+            .map(
+              (s) =>
+                `<div class="history-item">
+              <div class="h-item-left">
+                <div class="h-thumb"><i class="fa-regular fa-bookmark"></i></div>
+                <div>
+                  <div class="h-name">${s.title}</div>
+                  <div class="h-meta">${s.rooms} rooms <span class="h-meta-dot"></span>
+                    <i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${s.time}
+                  </div>
+                </div>
+              </div>
+            </div>`,
+            )
+            .join("") +
+          `</div>`;
+      }
+
+      /* ── SETTINGS ── */
+      function applySettings() {
+        document.getElementById("grid-toggle").className =
+          "toggle" + (gridOn ? "" : " off");
+        document
+          .querySelectorAll(".radio-option")
+          .forEach((r) => r.classList.remove("selected"));
+        document.getElementById("unit-" + units).classList.add("selected");
+        document.querySelectorAll(".fmt-btn").forEach((b) => {
+          b.classList.toggle("selected", b.textContent.trim() === exportFmt);
+        });
+      }
+
+      function selectUnit(u) {
+        units = u;
+        localStorage.setItem("architext_units", u);
+        applySettings();
+      }
+
+      function selectFmt(btn) {
+        exportFmt = btn.textContent.trim();
+        localStorage.setItem("architext_fmt", exportFmt);
+        applySettings();
+      }
+
+      function toggleGrid() {
+        gridOn = !gridOn;
+        localStorage.setItem("architext_grid", gridOn);
+        applySettings();
+        const canvas = document.getElementById("output-canvas");
+        if (!canvas.classList.contains("has-plan")) {
+          canvas.style.backgroundImage = gridOn
+            ? "radial-gradient(circle, rgba(155,99,63,0.22) 1px, transparent 1px)"
+            : "none";
+        }
+      }
+
+      function saveApiUrl() {
+        const val = document.getElementById("api-url").value.trim();
+        if (!val) return;
+        API_BASE = val;
+        localStorage.setItem("architext_api", val);
+        const msg = document.getElementById("settings-msg");
+        msg.style.display = "block";
+        setTimeout(() => (msg.style.display = "none"), 2000);
+      }
+
+      /* ── KEYBOARD ── */
+      document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") generatePlan();
+      });
+    </script>
+  </body>
+</html>
