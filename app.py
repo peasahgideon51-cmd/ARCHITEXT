@@ -21,11 +21,128 @@ from explanation.explanation import generate_explanation
 
 app = Flask(__name__, static_folder="static")
 CORS(app)   # allow the frontend to call the API from any origin during development
+# ---------------------------------------------------------------------------
+# Authentication & Database Setup
+# ---------------------------------------------------------------------------
+
+# Import the database object and User model we created in models.py
+from models import db, User
+
+# Bcrypt is used to securely hash passwords (never store plain text passwords!)
+from flask_bcrypt import Bcrypt
+
+# Flask-Login handles user sessions (keeping users logged in, logging out, etc.)
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+
+# Tell Flask where to store the database — this creates a file called architext.db
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///architext.db"
+
+# SECRET_KEY is used to keep login sessions secure (we'll improve this later with a real secret)
+app.config["SECRET_KEY"] = "change-this-later-to-something-random"
+
+# Connect our database object (from models.py) to this Flask app
+db.init_app(app)
+
+# Set up bcrypt so we can hash and check passwords
+bcrypt = Bcrypt(app)
+
+# Set up Flask-Login to manage logged-in users
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "api_login"  # where to redirect if login is required
+
+# Create the database tables (if they don't already exist) when the app starts
+with app.app_context():
+    db.create_all()
+
+
+# Tells Flask-Login how to find a user by their ID (used to keep sessions working)
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 
 # ---------------------------------------------------------------------------
-# Helper: serialise a ParsedLayout to a JSON-safe dict
+# POST /api/auth/signup
 # ---------------------------------------------------------------------------
+
+@app.post("/api/auth/signup")
+def api_signup():
+    """
+    Body (JSON): { "email": "user@example.com", "password": "somepassword" }
+
+    Creates a new user account. Returns an error if the email is already taken.
+    """
+    body = request.get_json(silent=True)
+
+    if not body or not body.get("email") or not body.get("password"):
+        abort(400, description="Request body must include 'email' and 'password'.")
+
+    email = body["email"].strip().lower()
+    password = body["password"]
+
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        abort(400, description="An account with this email already exists.")
+
+    hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    new_user = User(email=email, password_hash=hashed_password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    login_user(new_user)
+
+    return jsonify({
+        "ok": True,
+        "message": "Account created successfully.",
+        "user": {"id": new_user.id, "email": new_user.email},
+    })
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/login
+# ---------------------------------------------------------------------------
+
+@app.post("/api/auth/login")
+def api_login():
+    """
+    Body (JSON): { "email": "user@example.com", "password": "somepassword" }
+
+    Logs an existing user in if the email and password match.
+    """
+    body = request.get_json(silent=True)
+
+    if not body or not body.get("email") or not body.get("password"):
+        abort(400, description="Request body must include 'email' and 'password'.")
+
+    email = body["email"].strip().lower()
+    password = body["password"]
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user or not bcrypt.check_password_hash(user.password_hash, password):
+        abort(401, description="Invalid email or password.")
+
+    login_user(user)
+
+    return jsonify({
+        "ok": True,
+        "message": "Logged in successfully.",
+        "user": {"id": user.id, "email": user.email},
+    })
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/logout
+# ---------------------------------------------------------------------------
+
+@app.post("/api/auth/logout")
+@login_required
+def api_logout():
+    """Logs the current user out (ends their session)."""
+    logout_user()
+    return jsonify({"ok": True, "message": "Logged out successfully."})
 
 def _serialise_parsed(parsed: ParsedLayout) -> dict:
     return {
@@ -199,6 +316,9 @@ def serve_index():
 def bad_request(e):
     return jsonify({"ok": False, "error": str(e.description)}), 400
 
+@app.errorhandler(401)
+def unauthorized(e):
+    return jsonify({"ok": False, "error": str(e.description)}), 401
 
 @app.errorhandler(404)
 def not_found(e):
