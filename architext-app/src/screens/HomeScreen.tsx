@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Alert, Share,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useHistory, useSaved } from '../hooks/useStore';
 import { generateLayout, Plan } from '../services/api';
@@ -16,9 +17,10 @@ import { Input } from '../components/Input';
 interface ManualRoom { name: string; w: string; h: string; }
 
 export function HomeScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { addToHistory } = useHistory();
   const { savePlan } = useSaved();
+  const route = useRoute<any>();
 
   const [description, setDescription] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -31,14 +33,34 @@ export function HomeScreen() {
   const [roomH, setRoomH] = useState('');
   const [manualRooms, setManualRooms] = useState<ManualRoom[]>([]);
 
-  const handleGenerate = async () => {
-    if (!description.trim()) { setError('Please describe your space first.'); return; }
+  // Load a history entry when navigated from History screen
+  useEffect(() => {
+    const entry = route.params?.loadedEntry;
+    if (!entry) return;
+    if (entry.plan) {
+      setPlan(entry.plan);
+    } else if (entry.svg) {
+      setPlan({
+        title: entry.title,
+        template: '',
+        rooms: [],
+        svg: entry.svg,
+        explanation: entry.explanation || [],
+        canvas: { w: 0, h: 0 },
+      });
+    }
+    setView('2d');
+    if (entry.description) setDescription(entry.description);
+  }, [route.params?.loadedEntry]);
+
+  const runGenerate = async (text: string) => {
+    if (!text.trim()) { setError('Please describe your space first.'); return; }
     setError(''); setGenerating(true); setPlan(null);
     try {
-      const data = await generateLayout(description.trim());
+      const data = await generateLayout(text.trim());
       if (!data.ok) { setError(data.error || 'Generation failed.'); return; }
       setPlan(data.plan); setView('2d');
-      await addToHistory(data.plan, description);
+      await addToHistory(data.plan, text);
     } catch (err: any) {
       setError(`Could not reach the server. Make sure app.py is running.\n${err.message}`);
     } finally {
@@ -46,12 +68,17 @@ export function HomeScreen() {
     }
   };
 
+  const handleGenerate = () => runGenerate(description);
+
   const handleAddRoom = () => {
     if (!roomName.trim()) return;
     const room: ManualRoom = { name: roomName.trim(), w: roomW, h: roomH };
     setManualRooms((p) => [...p, room]);
-    setDescription((d) => d ? `${d}\n${room.name}${room.w && room.h ? ` ${room.w}x${room.h}` : ''}` : room.name);
+    const roomText = `${room.name}${room.w && room.h ? ` ${room.w}x${room.h}` : ''}`;
+    const newDesc = description ? `${description}\n${roomText}` : roomText;
+    setDescription(newDesc);
     setRoomName(''); setRoomW(''); setRoomH('');
+    runGenerate(newDesc);
   };
 
   const handleSave = async () => {
@@ -61,9 +88,26 @@ export function HomeScreen() {
     setTimeout(() => setSavedNow(false), 2000);
   };
 
+  const handleExport = async () => {
+    if (!plan?.svg) return;
+    try {
+      await Share.share({
+        message: plan.svg,
+        title: `${plan.title} — Floor Plan SVG`,
+      });
+    } catch {
+      Alert.alert('Export', 'Could not share the floor plan.');
+    }
+  };
+
   const svgHtml = plan?.svg
     ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fdfaf7}svg{width:100%;height:auto}</style></head><body>${plan.svg}</body></html>`
     : null;
+
+  const expBg = isDark ? '#1a1209' : '#2d1f14';
+  const expText = 'rgba(255,255,255,0.75)';
+  const expDot = theme.brownLight;
+  const expDivider = 'rgba(255,255,255,0.08)';
 
   return (
     <ScrollView style={[styles.root, { backgroundColor: theme.pageBg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -74,7 +118,6 @@ export function HomeScreen() {
       <Text style={[styles.pageTitle, { color: theme.dark }]}>Design your space</Text>
       <Text style={[styles.pageSub, { color: theme.muted }]}>Describe rooms in natural language — or add them one by one.</Text>
 
-      {/* Describe card */}
       <Card>
         <View style={styles.descHeader}>
           <View style={[styles.descIcon, { backgroundColor: theme.brownBg }]}>
@@ -85,7 +128,6 @@ export function HomeScreen() {
             <Text style={[styles.descSub, { color: theme.muted }]}>Natural language or room-per-line</Text>
           </View>
         </View>
-
         <TextInput
           style={[styles.textarea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.dark }]}
           placeholder="e.g. 3-bedroom house with open kitchen, living room, 2 bathrooms and a garage"
@@ -94,13 +136,11 @@ export function HomeScreen() {
           onChangeText={setDescription}
           multiline numberOfLines={5} textAlignVertical="top"
         />
-
         {error ? (
           <View style={[styles.errorBox, { backgroundColor: theme.errorBg, borderColor: theme.errorBorder }]}>
             <Text style={[styles.errorText, { color: theme.errorText }]}>{error}</Text>
           </View>
         ) : null}
-
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
           {Object.keys(EXAMPLES).map((key) => (
             <TouchableOpacity key={key} onPress={() => setDescription(EXAMPLES[key])} style={[styles.exChip, { borderColor: theme.border }]}>
@@ -108,11 +148,9 @@ export function HomeScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
         <Button label={generating ? 'Generating…' : 'Generate Floor Plan'} onPress={handleGenerate} loading={generating} />
       </Card>
 
-      {/* Manual rooms card */}
       <Card>
         <View style={styles.rowGap}>
           <Ionicons name="add" size={14} color={theme.mid} />
@@ -124,7 +162,7 @@ export function HomeScreen() {
           <View style={{ width: 10 }} />
           <Input placeholder="Height (ft)" value={roomH} onChangeText={setRoomH} keyboardType="numeric" containerStyle={{ flex: 1 }} />
         </View>
-        <Button label="Add Room" onPress={handleAddRoom} variant="ghost" style={{ marginTop: 6 }} />
+        <Button label="Add Room & Generate" onPress={handleAddRoom} variant="ghost" style={{ marginTop: 6 }} />
         {manualRooms.length > 0 && (
           <View style={styles.roomTags}>
             {manualRooms.map((r, i) => (
@@ -139,7 +177,6 @@ export function HomeScreen() {
         )}
       </Card>
 
-      {/* Output card */}
       <Card>
         <View style={styles.outputHeader}>
           <View>
@@ -149,10 +186,16 @@ export function HomeScreen() {
             </Text>
           </View>
           {plan && (
-            <TouchableOpacity onPress={handleSave} style={[styles.iconBtn, { borderColor: theme.border }]}>
-              <Ionicons name={savedNow ? 'bookmark' : 'bookmark-outline'} size={14} color={savedNow ? theme.brown : theme.mid} />
-              <Text style={[styles.iconBtnText, { color: savedNow ? theme.brown : theme.mid }]}>{savedNow ? 'Saved!' : 'Save'}</Text>
-            </TouchableOpacity>
+            <View style={styles.actionBtns}>
+              <TouchableOpacity onPress={handleExport} style={[styles.iconBtn, { borderColor: theme.border }]}>
+                <Ionicons name="share-outline" size={14} color={theme.mid} />
+                <Text style={[styles.iconBtnText, { color: theme.mid }]}>Export</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSave} style={[styles.iconBtn, { borderColor: theme.border }]}>
+                <Ionicons name={savedNow ? 'bookmark' : 'bookmark-outline'} size={14} color={savedNow ? theme.brown : theme.mid} />
+                <Text style={[styles.iconBtnText, { color: savedNow ? theme.brown : theme.mid }]}>{savedNow ? 'Saved!' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -190,7 +233,7 @@ export function HomeScreen() {
           )}
         </View>
 
-        {plan && (
+        {plan && plan.rooms.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
             {plan.rooms.map((r, i) => {
               const [bg, tc] = ROOM_COLOURS[r.room_type] || DEFAULT_ROOM_COLOUR;
@@ -205,12 +248,12 @@ export function HomeScreen() {
       </Card>
 
       {plan?.explanation?.length ? (
-        <View style={[styles.expCard, { backgroundColor: theme.dark }]}>
-          <Text style={[styles.expTitle, { color: theme.brownLight }]}>LAYOUT DECISIONS</Text>
+        <View style={[styles.expCard, { backgroundColor: expBg }]}>
+          <Text style={[styles.expTitle, { color: expDot }]}>LAYOUT DECISIONS</Text>
           {plan.explanation.map((e, i) => (
-            <View key={i} style={[styles.logEntry, { borderBottomColor: 'rgba(255,255,255,0.06)' }]}>
-              <View style={[styles.logDot, { backgroundColor: theme.brownLight }]} />
-              <Text style={[styles.logText, { color: 'rgba(255,255,255,0.6)' }]}>{e}</Text>
+            <View key={i} style={[styles.logEntry, { borderBottomColor: expDivider }]}>
+              <View style={[styles.logDot, { backgroundColor: expDot }]} />
+              <Text style={[styles.logText, { color: expText }]}>{e}</Text>
             </View>
           ))}
         </View>
@@ -243,8 +286,9 @@ const styles = StyleSheet.create({
   roomTagText: { fontSize: 12 },
   outputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   outputSub: { fontSize: 12, fontWeight: '300', marginTop: 2 },
-  iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderRadius: 8 },
-  iconBtnText: { fontSize: 12 },
+  actionBtns: { flexDirection: 'row', gap: 6 },
+  iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderRadius: 8 },
+  iconBtnText: { fontSize: 11 },
   viewToggle: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   viewBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 16, borderWidth: 1.5, borderRadius: 100 },
   viewBtnText: { fontSize: 12, fontWeight: '500' },
