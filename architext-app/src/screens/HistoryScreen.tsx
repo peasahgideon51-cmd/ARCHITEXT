@@ -1,12 +1,18 @@
 import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useHistory, HistoryEntry } from '../hooks/useStore';
 
 export function HistoryScreen() {
   const { theme } = useTheme();
   const { history } = useHistory();
+  const navigation = useNavigation<any>();
+
+  const handleOpen = (item: HistoryEntry) => {
+    navigation.navigate('Home', { loadedEntry: item });
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.pageBg }]}>
@@ -30,7 +36,11 @@ export function HistoryScreen() {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }: { item: HistoryEntry }) => (
-            <TouchableOpacity style={[styles.item, { backgroundColor: theme.cardBg, borderColor: theme.border }]} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={[styles.item, { backgroundColor: theme.cardBg, borderColor: theme.border }]}
+              activeOpacity={0.7}
+              onPress={() => handleOpen(item)}
+            >
               <View style={styles.itemLeft}>
                 <View style={[styles.thumb, { backgroundColor: theme.brownBg }]}>
                   <Ionicons name="grid-outline" size={18} color={theme.brown} />
@@ -42,6 +52,11 @@ export function HistoryScreen() {
                     <View style={[styles.metaDot, { backgroundColor: theme.border }]} />
                     <Text style={[styles.metaText, { color: theme.muted }]}>{item.time}</Text>
                   </View>
+                  {item.description ? (
+                    <Text style={[styles.descPreview, { color: theme.muted }]} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
               <Text style={[styles.open, { color: theme.brown }]}>Open →</Text>
@@ -73,6 +88,7 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaText: { fontSize: 12, fontWeight: '300' },
   metaDot: { width: 3, height: 3, borderRadius: 2 },
+  descPreview: { fontSize: 11, marginTop: 3, fontWeight: '300' },
   open: { fontSize: 13, fontWeight: '500' },
   emptyBox: { margin: 24, borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 36, alignItems: 'center' },
   emptyText: { fontSize: 13, fontWeight: '300', textAlign: 'center' },

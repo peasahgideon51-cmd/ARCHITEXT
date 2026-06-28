@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plan } from '../services/api';
 
@@ -25,11 +26,13 @@ export interface SavedEntry {
 export function useHistory() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-  useEffect(() => {
+  const loadHistory = useCallback(() => {
     AsyncStorage.getItem('architext_history').then((raw) => {
-      if (raw) setHistory(JSON.parse(raw));
+      setHistory(raw ? JSON.parse(raw) : []);
     });
   }, []);
+
+  useFocusEffect(loadHistory);
 
   const addToHistory = useCallback(async (plan: Plan, description: string) => {
     const sqft = plan.rooms.reduce((s, r) => s + Math.round((r.w / 10) * (r.h / 10)), 0);
@@ -57,11 +60,13 @@ export function useHistory() {
 export function useSaved() {
   const [saved, setSaved] = useState<SavedEntry[]>([]);
 
-  useEffect(() => {
+  const loadSaved = useCallback(() => {
     AsyncStorage.getItem('architext_saved').then((raw) => {
-      if (raw) setSaved(JSON.parse(raw));
+      setSaved(raw ? JSON.parse(raw) : []);
     });
   }, []);
+
+  useFocusEffect(loadSaved);
 
   const savePlan = useCallback(async (plan: Plan) => {
     const entry: SavedEntry = {
