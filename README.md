@@ -1,6 +1,6 @@
 # Architext
 
-> *Describe a space. See a floor plan.*
+> _Describe a space. See a floor plan._
 
 Architext is an AI-powered architectural floor plan generator. Users provide natural language descriptions of spaces and receive to-scale SVG floor plans rendered in 2D, with an interactive 3D isometric view in progress.
 
@@ -8,14 +8,14 @@ Architext is an AI-powered architectural floor plan generator. Users provide nat
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Mobile Frontend | React Native + Expo SDK 54 + TypeScript |
-| Backend / Auth | Spring Boot 3.3 (Java 21) + JWT + PostgreSQL |
-| Layout Engine | Python / Flask (NLP parser, layout engine, SVG renderer) |
-| Database | PostgreSQL 18 |
-| Navigation | React Navigation v7 — Stack navigator |
-| Storage | AsyncStorage (local), PostgreSQL (user accounts) |
+| Layer           | Technology                                               |
+| --------------- | -------------------------------------------------------- |
+| Mobile Frontend | React Native + Expo SDK 54 + TypeScript                  |
+| Backend / Auth  | Spring Boot 3.3 (Java 21) + JWT + PostgreSQL             |
+| Layout Engine   | Python / Flask (NLP parser, layout engine, SVG renderer) |
+| Database        | PostgreSQL 18                                            |
+| Navigation      | React Navigation v7 — Stack navigator                    |
+| Storage         | AsyncStorage (local), PostgreSQL (user accounts)         |
 
 ---
 
@@ -90,13 +90,13 @@ The React Native client **never** talks to Flask directly. Spring Boot proxies a
 
 ## Team Roles
 
-| Dev | Area | Folders / Files |
-|---|---|---|
-| 1 | Frontend (React Native) | `architext-app/src/screens/`, `architext-app/src/navigation/` |
-| 2 | UI/UX & Design | `architext-app/src/components/`, `architext-app/src/constants/theme.ts` |
-| 3 | Backend / API | `architext-backend/`, `app.py` |
-| 4 | AI & Floor Plan Engine | `parser/`, `layout/`, `explanation/` |
-| 5 | Visualization & Export | `renderer/`, 3D view (in progress) |
+| Dev | Area                    | Folders / Files                                                         |
+| --- | ----------------------- | ----------------------------------------------------------------------- |
+| 1   | Frontend (React Native) | `architext-app/src/screens/`, `architext-app/src/navigation/`           |
+| 2   | UI/UX & Design          | `architext-app/src/components/`, `architext-app/src/constants/theme.ts` |
+| 3   | Backend / API           | `architext-backend/`, `app.py`                                          |
+| 4   | AI & Floor Plan Engine  | `parser/`, `layout/`, `explanation/`                                    |
+| 5   | Visualization & Export  | `renderer/`, 3D view (in progress)                                      |
 
 ---
 
@@ -138,6 +138,7 @@ CREATE DATABASE architext;
 ```
 
 Update the password in `architext-backend/src/main/resources/application.properties`:
+
 ```properties
 spring.datasource.password=YOUR_PASSWORD
 ```
@@ -145,17 +146,20 @@ spring.datasource.password=YOUR_PASSWORD
 ### 5. Start all three servers
 
 **Terminal 1 — Flask engine:**
+
 ```bash
 python app.py
 ```
 
 **Terminal 2 — Spring Boot:**
+
 ```bash
 cd architext-backend
 mvn spring-boot:run
 ```
 
 **Terminal 3 — Expo (React Native):**
+
 ```bash
 cd architext-app
 npx expo start
@@ -168,7 +172,7 @@ Scan the QR code with **Expo Go** on your phone.
 In `architext-app/src/context/AuthContext.tsx` and `architext-app/src/services/api.ts`, set `BASE_URL` / `DEFAULT_BASE` to your machine's local IP address on port 8080:
 
 ```typescript
-const BASE_URL = 'http://YOUR_LOCAL_IP:8080';
+const BASE_URL = "http://YOUR_LOCAL_IP:8080";
 ```
 
 Find your IP with `ipconfig` (Windows) or `ifconfig` (Mac/Linux).
@@ -181,4 +185,4 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, commit message 
 
 ---
 
-*For questions, reach out to the project lead.*
+_For questions, reach out to the project lead._
