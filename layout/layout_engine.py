@@ -333,77 +333,156 @@ def _position_score(room_type: str, slot: GridSlot) -> int:
     return score
 
 # ---------------------------------------------------------------------------
-# Smart room assignment
+# Slot-adjacency + adjacency-rule helpers
 # ---------------------------------------------------------------------------
+
+def _slots_grid_adjacent(s1: GridSlot, s2: GridSlot) -> bool:
+    """True if two grid slots touch (share an edge), same logic as _find_adjacency_pairs."""
+    a_right  = s1.col + s1.col_span
+    b_right  = s2.col + s2.col_span
+    a_bottom = s1.row + s1.row_span
+    b_bottom = s2.row + s2.row_span
+
+    h_adjacent = (a_right == s2.col or b_right == s1.col)
+    v_adjacent = (a_bottom == s2.row or b_bottom == s1.row)
+    row_overlap = not (a_bottom <= s2.row or b_bottom <= s1.row)
+    col_overlap = not (a_right <= s2.col or b_right <= s1.col)
+
+    return (h_adjacent and row_overlap) or (v_adjacent and col_overlap)
+
+
+def _required_adjacency_pairs(rooms: list[Room]) -> list[tuple[str, str]]:
+    """
+    ADJACENCY_RULES type-pairs that are actually relevant for this room list
+    (both types present). Enforced at the type level — at least one instance
+    of type A must end up grid-adjacent to at least one instance of type B —
+    not every instance, since e.g. multiple bedrooms sharing one bathroom is
+    architecturally normal.
+    """
+    type_set = {r.room_type for r in rooms}
+    return [(a, b) for a, b, _ in ADJACENCY_RULES if a in type_set and b in type_set]
+
+
+def _count_satisfied_pairs(
+    assignment: dict[int, GridSlot],
+    rooms: list[Room],
+    required_pairs: list[tuple[str, str]],
+) -> int:
+    count = 0
+    for type_a, type_b in required_pairs:
+        satisfied = False
+        for i, ri in enumerate(rooms):
+            if ri.room_type != type_a or i not in assignment:
+                continue
+            for j, rj in enumerate(rooms):
+                if i == j or rj.room_type != type_b or j not in assignment:
+                    continue
+                if _slots_grid_adjacent(assignment[i], assignment[j]):
+                    satisfied = True
+                    break
+            if satisfied:
+                break
+        if satisfied:
+            count += 1
+    return count
 
 def assign_rooms(layout: ParsedLayout, template: Template) -> list[AssignedRoom]:
     """
-    Smart architectural room assignment using:
-    - zone affinity
-    - position scoring
-    - room priority
+    Architectural room assignment via backtracking search:
+    - zone affinity + position scoring rank candidate slots for each room
+      (best-first), same as before
+    - ADJACENCY_RULES type-pairs present in the room list are enforced as a
+      HARD constraint: a full assignment is only accepted if every required
+      pair actually ends up grid-adjacent
+    - search is bounded by MAX_ATTEMPTS; if no fully-satisfying assignment
+      is found in budget, falls back to the partial-best assignment found
+      (most rules satisfied, then best zone/position score) rather than
+      hanging — so this degrades gracefully on pathological inputs instead
+      of guaranteeing perfection
     """
-
     available_slots = list(template.slots)
 
-    assigned: list[AssignedRoom] = []
-
-    # Priority placement order
     priority_order = [
-        "hallway",
-        "living_room",
-        "dining_room",
-        "kitchen",
-        "bedroom",
-        "bathroom",
-        "study",
-        "utility",
-        "garage",
-        "garden",
+        "hallway", "living_room", "dining_room", "kitchen", "bedroom",
+        "bathroom", "study", "utility", "garage", "garden",
     ]
 
     def room_priority(r: Room) -> int:
-
         try:
             return priority_order.index(r.room_type)
-
         except ValueError:
             return 99
 
     sorted_rooms = sorted(layout.rooms, key=room_priority)
+    if len(sorted_rooms) > len(available_slots):
+        sorted_rooms = sorted_rooms[: len(available_slots)]
+    n = len(sorted_rooms)
 
-    # -----------------------------------------------------------------------
-    # Assignment loop
-    # -----------------------------------------------------------------------
+    if n == 0:
+        return []
 
-    for room in sorted_rooms:
+    required_pairs = _required_adjacency_pairs(sorted_rooms)
 
-        if not available_slots:
-            break
+    def slot_score(room: Room, slot: GridSlot) -> int:
+        return _zone_affinity_score(room.room_type, slot) + _position_score(room.room_type, slot)
 
-        # Combined scoring
-        best_slot = min(
-            available_slots,
-            key=lambda s: (
-                _zone_affinity_score(room.room_type, s)
-                + _position_score(room.room_type, s)
-            )
-        )
+    # Best-first candidate slot order per room, computed once.
+    candidate_orders = [
+        sorted(available_slots, key=lambda s: slot_score(room, s))
+        for room in sorted_rooms
+    ]
 
-        available_slots.remove(best_slot)
+    MAX_ATTEMPTS = 50_000
+    attempts = 0
+    used_slot_ids: set[str] = set()
+    assignment: dict[int, GridSlot] = {}
 
-        assigned.append(
-            AssignedRoom(
-                room=room,
-                slot=best_slot,
-                x=0,
-                y=0,
-                w=0,
-                h=0,
-            )
-        )
+    best_assignment: Optional[dict[int, GridSlot]] = None
+    best_satisfied = -1
+    best_score = float("inf")
+
+    def consider_complete() -> bool:
+        nonlocal best_assignment, best_satisfied, best_score
+        satisfied = _count_satisfied_pairs(assignment, sorted_rooms, required_pairs)
+        total_score = sum(slot_score(sorted_rooms[i], assignment[i]) for i in range(n))
+        if satisfied > best_satisfied or (satisfied == best_satisfied and total_score < best_score):
+            best_assignment = dict(assignment)
+            best_satisfied = satisfied
+            best_score = total_score
+        return satisfied == len(required_pairs)
+
+    def backtrack(idx: int) -> bool:
+        nonlocal attempts
+        attempts += 1
+        if attempts > MAX_ATTEMPTS:
+            return False
+        if idx == n:
+            return consider_complete()
+
+        for slot in candidate_orders[idx]:
+            if slot.slot_id in used_slot_ids:
+                continue
+            assignment[idx] = slot
+            used_slot_ids.add(slot.slot_id)
+            if backtrack(idx + 1):
+                return True
+            used_slot_ids.remove(slot.slot_id)
+            del assignment[idx]
+        return False
+
+    backtrack(0)
+
+    final = best_assignment or {}
+    assigned: list[AssignedRoom] = []
+    for i, room in enumerate(sorted_rooms):
+        slot = final.get(i)
+        if slot is None:
+            continue
+        assigned.append(AssignedRoom(room=room, slot=slot, x=0, y=0, w=0, h=0))
 
     return assigned
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -471,9 +550,15 @@ def _collect_applied_rules(
     assigned: list[AssignedRoom],
     layout: ParsedLayout,
     template: Template,
+    adjacency_pairs: list[tuple[str, str]],
 ) -> list[str]:
     """
     Generate human-readable rules that were applied during layout.
+
+    Adjacency reasons are only included if the rule's type-pair is actually
+    realised by a grid-adjacent pair of rooms in the final layout (checked
+    via adjacency_pairs), not merely because both room types happen to
+    appear somewhere in the plan.
     """
     rules: list[str] = []
 
@@ -484,9 +569,17 @@ def _collect_applied_rules(
     )
 
     room_types = {ar.room.room_type for ar in assigned}
+    label_to_type = {ar.room.label: ar.room.room_type for ar in assigned}
+
+    achieved_type_pairs: set[tuple[str, str]] = set()
+    for la, lb in adjacency_pairs:
+        ta, tb = label_to_type.get(la), label_to_type.get(lb)
+        if ta and tb:
+            achieved_type_pairs.add((ta, tb))
+            achieved_type_pairs.add((tb, ta))
 
     for type_a, type_b, reason in ADJACENCY_RULES:
-        if type_a in room_types and type_b in room_types:
+        if (type_a, type_b) in achieved_type_pairs:
             rules.append(reason)
 
     if layout.total_bedrooms >= 2:
@@ -524,7 +617,7 @@ def generate_layout(layout: ParsedLayout) -> GeneratedLayout:
     assigned = assign_rooms(layout, template)
     assigned, canvas_w, canvas_h = _compute_pixel_coords(assigned, template.cols, template.rows)
     adjacency_pairs = _find_adjacency_pairs(assigned)
-    applied_rules = _collect_applied_rules(assigned, layout, template)
+    applied_rules = _collect_applied_rules(assigned, layout, template, adjacency_pairs)
 
     return GeneratedLayout(
         template=template,
