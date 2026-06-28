@@ -24,11 +24,11 @@ export interface GenerateResponse {
   error?: string;
 }
 
-const DEFAULT_BASE = "http://172.20.10.2:5000";
+const BASE_URL = "http://172.20.10.2:8080";
 
 async function getApiBase(): Promise<string> {
   const stored = await AsyncStorage.getItem("architext_api");
-  return stored || DEFAULT_BASE;
+  return stored || BASE_URL;
 }
 
 async function authHeaders(): Promise<HeadersInit> {
