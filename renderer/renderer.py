@@ -2,17 +2,44 @@
 renderer.py — Architext SVG renderer
 
 Architectural drawing style:
-- Hatched thick walls
-- Door swing arcs with swing line
-- Window breaks on exterior walls
+- Hatched thick walls on exterior edges
+- Thin single-line partitions on shared interior edges (geometry-detected)
+- Door swing arcs, placed on interior doorways where available
+- Window breaks on exterior walls only
 - Dimension lines with tick marks
 - Room name + area (m²) labels
 - Drafting paper background with grid
 - Scale bar + north arrow
+
+UPGRADE PATH:
+Shared-edge detection currently happens in _compute_shared_edges() purely from
+room geometry (x, y, w, h). If layout_engine.py is upgraded to expose
+ar.shared_edges natively (precomputed during layout generation), replace the
+call to _compute_shared_edges(rooms) in render_svg() with a thin adapter that
+reads that attribute instead — everything downstream (wall drawing, door
+placement) consumes the same `shared` list shape and needs no further changes.
 """
 
 from __future__ import annotations
-from layout.layout_engine import GeneratedLayout, AssignedRoom
+from layout.layout_engine import GeneratedLayout, AssignedRoom, ADJACENCY_RULES
+
+# Door eligibility: only cut a doorway through a shared edge if the two
+# room types have an architectural reason to connect. Hallways are treated
+# as a circulation spine and can always get a door to a neighbour, even
+# without an explicit rule. Any other shared edge is drawn as a solid
+# partition with no opening — this is the renderer-side mitigation for
+# assign_rooms() not yet enforcing ADJACENCY_RULES during placement (see
+# layout_engine.py follow-up).
+_ADJACENCY_ALLOWED: set[tuple[str, str]] = set()
+for _a, _b, _ in ADJACENCY_RULES:
+    _ADJACENCY_ALLOWED.add((_a, _b))
+    _ADJACENCY_ALLOWED.add((_b, _a))
+
+
+def _is_door_allowed(type_a: str, type_b: str) -> bool:
+    if type_a == "hallway" or type_b == "hallway":
+        return True
+    return (type_a, type_b) in _ADJACENCY_ALLOWED
 
 # ---------------------------------------------------------------------------
 # Colour palette
@@ -33,10 +60,12 @@ ROOM_COLOURS: dict[str, tuple[str, str]] = {
 
 DEFAULT_COLOURS = ("#F5F4F0", "#333333")
 
-WALL_T      = 8     # outer wall stroke width (px)
+WALL_T      = 8     # exterior wall stroke width (px)
+INNER_WALL_T = 2.5  # interior partition stroke width (px)
 HATCH_GAP   = 6     # spacing between hatch lines
 DIM_OFFSET  = 14    # px — dimension line offset from room edge
 SCALE       = 10    # px per 0.1m (1px = 1cm at 1:100)
+EDGE_TOL    = 2.0   # px tolerance for treating two edges as touching
 
 
 # ---------------------------------------------------------------------------
@@ -94,25 +123,122 @@ def _area_label(w: int, h: int, units: str) -> str:
 
 def _dim_label(px: int, units: str) -> str:
     value = _convert_dimension(px, units)
-
     suffix = "ft" if units == "imperial" else "m"
-
     return f"{value:.1f}{suffix}"
+
+
+# ---------------------------------------------------------------------------
+# Shared-edge detection (geometry-based)
+# ---------------------------------------------------------------------------
+
+_OPPOSITE = {"left": "right", "right": "left", "top": "bottom", "bottom": "top"}
+
+
+def _compute_shared_edges(rooms: list[AssignedRoom]) -> list[dict]:
+    """
+    Detects adjacent room pairs via GRID SLOT touching (col/row/col_span/
+    row_span) — mirrors layout_engine._find_adjacency_pairs(). Pixel-distance
+    detection doesn't work here because _compute_pixel_coords() inserts
+    PADDING between every cell, so rooms never actually touch in pixel space
+    even when grid-adjacent.
+
+    The shared "fixed" coordinate is the midpoint of the padding gap between
+    the two rooms, so the interior partition line floats centred in the
+    cavity. Each room's own wall-band drawing still uses its own true pixel
+    edge (see _room_shared_ranges / _draw_walls), so walls stay flush to the
+    room regardless of gap width.
+
+    UPGRADE PATH: if layout_engine.py starts exposing ar.shared_edges
+    natively (precomputed during layout generation, ideally with zero
+    padding so walls touch directly), replace this function body with a
+    thin adapter — downstream consumers only depend on the returned dict
+    shape (room_a/side_a/room_b/side_b/fixed/start/end), not on how it's
+    computed.
+    """
+    shared: list[dict] = []
+    n = len(rooms)
+    for i in range(n):
+        a = rooms[i]
+        for j in range(i + 1, n):
+            b = rooms[j]
+            a_right  = a.slot.col + a.slot.col_span
+            b_right  = b.slot.col + b.slot.col_span
+            a_bottom = a.slot.row + a.slot.row_span
+            b_bottom = b.slot.row + b.slot.row_span
+
+            row_overlap = not (a_bottom <= b.slot.row or b_bottom <= a.slot.row)
+            col_overlap = not (a_right <= b.slot.col or b_right <= a.slot.col)
+
+            # Horizontal neighbours: one room's right column edge meets the other's left.
+            if row_overlap and (a_right == b.slot.col or b_right == a.slot.col):
+                left, right = (a, b) if a_right == b.slot.col else (b, a)
+                ov_start = max(left.y, right.y)
+                ov_end = min(left.y + left.h, right.y + right.h)
+                if ov_end - ov_start > EDGE_TOL:
+                    shared.append({
+                        "room_a": left, "side_a": "right",
+                        "room_b": right, "side_b": "left",
+                        "fixed": (left.x + left.w + right.x) / 2,
+                        "start": ov_start, "end": ov_end,
+                    })
+
+            # Vertical neighbours: one room's bottom row edge meets the other's top.
+            if col_overlap and (a_bottom == b.slot.row or b_bottom == a.slot.row):
+                top, bottom = (a, b) if a_bottom == b.slot.row else (b, a)
+                ov_start = max(top.x, bottom.x)
+                ov_end = min(top.x + top.w, bottom.x + bottom.w)
+                if ov_end - ov_start > EDGE_TOL:
+                    shared.append({
+                        "room_a": top, "side_a": "bottom",
+                        "room_b": bottom, "side_b": "top",
+                        "fixed": (top.y + top.h + bottom.y) / 2,
+                        "start": ov_start, "end": ov_end,
+                    })
+    return shared
+
+
+def _room_shared_segments(ar: AssignedRoom, shared: list[dict]) -> list[dict]:
+    """Per-room list of shared-edge segments, each tagged with the neighbouring room."""
+    segs: list[dict] = []
+    for s in shared:
+        if s["room_a"] is ar:
+            segs.append({"side": s["side_a"], "start": s["start"], "end": s["end"], "neighbor": s["room_b"]})
+        elif s["room_b"] is ar:
+            segs.append({"side": s["side_b"], "start": s["start"], "end": s["end"], "neighbor": s["room_a"]})
+    return segs
+
+
+def _room_shared_ranges(ar: AssignedRoom, shared: list[dict]) -> dict[str, list[tuple[float, float]]]:
+    """Per-side list of (start, end) ranges along this room's perimeter that are shared with a neighbour."""
+    ranges: dict[str, list[tuple[float, float]]] = {"left": [], "right": [], "top": [], "bottom": []}
+    for seg in _room_shared_segments(ar, shared):
+        ranges[seg["side"]].append((seg["start"], seg["end"]))
+    return ranges
+
+
+def _exterior_segments(full_start: float, full_end: float, shared_ranges: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Subtracts shared ranges from the full span, returning leftover exterior sub-segments."""
+    if not shared_ranges:
+        return [(full_start, full_end)]
+    cuts = sorted(shared_ranges)
+    segments: list[tuple[float, float]] = []
+    cursor = full_start
+    for s, e in cuts:
+        s = max(s, full_start)
+        e = min(e, full_end)
+        if s > cursor:
+            segments.append((cursor, s))
+        cursor = max(cursor, e)
+    if cursor < full_end:
+        segments.append((cursor, full_end))
+    return [(s, e) for s, e in segments if e - s > 1]
 
 
 # ---------------------------------------------------------------------------
 # Drawing primitives
 # ---------------------------------------------------------------------------
 
-def _hatch_wall(out: list[str], x: int, y: int, w: int, h: int) -> None:
-    """Architectural hatched wall: hatch fills the wall band, bold outline."""
-    uid  = f"h{x}_{y}"
-    cid  = f"c{x}_{y}"
-    ix   = x + WALL_T
-    iy   = y + WALL_T
-    iw   = w - WALL_T * 2
-    ih   = h - WALL_T * 2
-
+def _hatch_defs(out: list[str], uid: str) -> None:
     out.append('<defs>')
     out.append(
         f'  <pattern id="{uid}" width="{HATCH_GAP}" height="{HATCH_GAP}" '
@@ -123,82 +249,174 @@ def _hatch_wall(out: list[str], x: int, y: int, w: int, h: int) -> None:
         f'stroke="#3a3a3a" stroke-width="0.7"/>'
     )
     out.append('  </pattern>')
-    out.append(f'  <clipPath id="{cid}">')
-    out.append(
-        f'    <path fill-rule="evenodd" d="'
-        f'M{x} {y} L{x+w} {y} L{x+w} {y+h} L{x} {y+h} Z '
-        f'M{ix} {iy} L{ix+iw} {iy} L{ix+iw} {iy+ih} L{ix} {iy+ih} Z"/>'
-    )
-    out.append('  </clipPath>')
     out.append('</defs>')
 
-    # Hatch fill in wall band
+
+def _hatch_band(out: list[str], x: float, y: float, w: float, h: float, uid: str) -> None:
+    """Draws a single exterior wall band (a thin rect) hatched and bordered."""
+    if w <= 0 or h <= 0:
+        return
     out.append(
-        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
-        f'fill="url(#{uid})" clip-path="url(#{cid})"/>'
+        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+        f'fill="url(#{uid})"/>'
     )
-    # Outer border
     out.append(
-        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
-        f'fill="none" stroke="#1a1a1a" stroke-width="{WALL_T}"/>'
+        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+        f'fill="none" stroke="#1a1a1a" stroke-width="1.1"/>'
     )
-    # Inner face line
-    if iw > 0 and ih > 0:
+
+
+def _draw_walls(out: list[str], ar: AssignedRoom, ranges: dict[str, list[tuple[float, float]]], ox: int, oy: int) -> None:
+    """
+    Edge-aware wall drawing for one room:
+    - Exterior sub-segments (no neighbour on that stretch): bold hatched band.
+    - Shared sub-segments are skipped here; they're drawn once, separately,
+      as thin interior partitions (see _draw_interior_partitions).
+    """
+    rx, ry, rw, rh = ar.x + ox, ar.y + oy, ar.w, ar.h
+    uid = f"h{ar.x}_{ar.y}"
+    _hatch_defs(out, uid)
+
+    # left
+    for s, e in _exterior_segments(ar.y, ar.y + ar.h, ranges["left"]):
+        _hatch_band(out, rx - WALL_T / 2, s + oy, WALL_T, e - s, uid)
+    # right
+    for s, e in _exterior_segments(ar.y, ar.y + ar.h, ranges["right"]):
+        _hatch_band(out, rx + rw - WALL_T / 2, s + oy, WALL_T, e - s, uid)
+    # top
+    for s, e in _exterior_segments(ar.x, ar.x + ar.w, ranges["top"]):
+        _hatch_band(out, s + ox, ry - WALL_T / 2, e - s, WALL_T, uid)
+    # bottom
+    for s, e in _exterior_segments(ar.x, ar.x + ar.w, ranges["bottom"]):
+        _hatch_band(out, s + ox, ry + rh - WALL_T / 2, e - s, WALL_T, uid)
+
+
+def _draw_interior_partitions(out: list[str], shared: list[dict], ox: int, oy: int) -> None:
+    """Draws each shared edge once as a thin interior wall line."""
+    for s in shared:
+        side = s["side_a"]
+        if side in ("left", "right"):
+            x = s["fixed"] + ox
+            out.append(
+                f'<line x1="{x:.1f}" y1="{s["start"]+oy:.1f}" x2="{x:.1f}" y2="{s["end"]+oy:.1f}" '
+                f'stroke="#2a2a2a" stroke-width="{INNER_WALL_T}"/>'
+            )
+        else:  # top/bottom
+            y = s["fixed"] + oy
+            out.append(
+                f'<line x1="{s["start"]+ox:.1f}" y1="{y:.1f}" x2="{s["end"]+ox:.1f}" y2="{y:.1f}" '
+                f'stroke="#2a2a2a" stroke-width="{INNER_WALL_T}"/>'
+            )
+
+
+def _door_on_edge(out: list[str], side: str, fixed: float, start: float, end: float, ox: int, oy: int, interior: bool) -> None:
+    """Draws a door swing centred on a given edge segment (interior or exterior)."""
+    length = end - start
+    d = min(26, length * 0.5)
+    if d < 8:
+        return
+    mid = (start + end) / 2
+
+    if side in ("left", "right"):
+        hx = fixed + ox
+        hy = mid - d / 2 + oy
+        lx = hx
+        ly = hy + d
+        out.append(f'<line x1="{hx:.1f}" y1="{hy:.1f}" x2="{lx:.1f}" y2="{ly:.1f}" stroke="#333" stroke-width="1.5"/>')
+        sweep_x = hx + d if side == "left" else hx - d
+        out.append(f'<line x1="{hx:.1f}" y1="{hy:.1f}" x2="{sweep_x:.1f}" y2="{hy:.1f}" stroke="#333" stroke-width="1.5"/>')
+        sweep_flag = 1 if side == "left" else 0
         out.append(
-            f'<rect x="{ix}" y="{iy}" width="{iw}" height="{ih}" '
-            f'fill="none" stroke="#555" stroke-width="0.6"/>'
+            f'<path d="M{lx:.1f} {ly:.1f} A{d:.1f} {d:.1f} 0 0 {sweep_flag} {sweep_x:.1f} {hy:.1f}" '
+            f'stroke="#555" stroke-width="0.9" fill="none" stroke-dasharray="3,2"/>'
+        )
+    else:
+        hy = fixed + oy
+        hx = mid - d / 2 + ox
+        lx = hx + d
+        out.append(f'<line x1="{hx:.1f}" y1="{hy:.1f}" x2="{lx:.1f}" y2="{hy:.1f}" stroke="#333" stroke-width="1.5"/>')
+        sweep_y = hy + d if side == "top" else hy - d
+        out.append(f'<line x1="{hx:.1f}" y1="{hy:.1f}" x2="{hx:.1f}" y2="{sweep_y:.1f}" stroke="#333" stroke-width="1.5"/>')
+        sweep_flag = 0 if side == "top" else 1
+        out.append(
+            f'<path d="M{lx:.1f} {hy:.1f} A{d:.1f} {d:.1f} 0 0 {sweep_flag} {hx:.1f} {sweep_y:.1f}" '
+            f'stroke="#555" stroke-width="0.9" fill="none" stroke-dasharray="3,2"/>'
+        )
+
+    # erase the wall segment under the doorway for a clean opening
+    erase_w = INNER_WALL_T + 2 if interior else WALL_T + 2
+    if side in ("left", "right"):
+        x = fixed + ox
+        out.append(
+            f'<line x1="{x:.1f}" y1="{mid-d/2+oy:.1f}" x2="{x:.1f}" y2="{mid+d/2+oy:.1f}" '
+            f'stroke="#fdfbf7" stroke-width="{erase_w}"/>'
+        )
+    else:
+        y = fixed + oy
+        out.append(
+            f'<line x1="{mid-d/2+ox:.1f}" y1="{y:.1f}" x2="{mid+d/2+ox:.1f}" y2="{y:.1f}" '
+            f'stroke="#fdfbf7" stroke-width="{erase_w}"/>'
         )
 
 
-def _door(out: list[str], x: int, y: int, w: int, h: int) -> None:
-    """Door swing: leaf line + quarter-circle arc, bottom-right corner."""
-    d    = min(26, w // 4, h // 4)
-    hx   = x + w - WALL_T - 2
-    hy   = y + h - WALL_T - 2
-    lx   = hx - d
-    # Hinge to leaf end
-    out.append(
-        f'<line x1="{hx}" y1="{hy}" x2="{lx}" y2="{hy}" '
-        f'stroke="#333" stroke-width="1.5"/>'
-    )
-    # Hinge to top of swing
-    out.append(
-        f'<line x1="{hx}" y1="{hy}" x2="{hx}" y2="{hy-d}" '
-        f'stroke="#333" stroke-width="1.5"/>'
-    )
-    # Swing arc
-    out.append(
-        f'<path d="M{lx} {hy} A{d} {d} 0 0 1 {hx} {hy-d}" '
-        f'stroke="#555" stroke-width="0.9" fill="none" stroke-dasharray="3,2"/>'
-    )
+def _place_door(out: list[str], ar: AssignedRoom, shared: list[dict], ranges: dict[str, list[tuple[float, float]]], ox: int, oy: int) -> None:
+    """
+    Chooses a doorway for the room: prefers the longest shared (interior)
+    edge segment that is architecturally eligible — i.e. connects to a
+    hallway, or matches an ADJACENCY_RULES pair. Shared edges that don't
+    meet that bar are left as solid partitions (no door). If no eligible
+    interior edge exists, falls back to an exterior entrance on the bottom
+    wall (street-facing access).
+    """
+    best = None  # (length, side, fixed, start, end)
+    for seg in _room_shared_segments(ar, shared):
+        if not _is_door_allowed(ar.room.room_type, seg["neighbor"].room.room_type):
+            continue
+        length = seg["end"] - seg["start"]
+        fixed = {"left": ar.x, "right": ar.x + ar.w, "top": ar.y, "bottom": ar.y + ar.h}[seg["side"]]
+        if best is None or length > best[0]:
+            best = (length, seg["side"], fixed, seg["start"], seg["end"])
+
+    if best:
+        _, side, fixed, s, e = best
+        _door_on_edge(out, side, fixed, s, e, ox, oy, interior=True)
+    else:
+        # No eligible interior connection — exterior entrance on the bottom wall.
+        _door_on_edge(out, "bottom", ar.y + ar.h, ar.x, ar.x + ar.w, ox, oy, interior=False)
 
 
-def _windows(out: list[str], x: int, y: int, w: int, h: int) -> None:
-    """Window break on top wall: gap + double-glazing lines."""
-    ww  = min(36, w // 3)
-    cx  = x + w // 2
-    wy  = y
+def _windows(out: list[str], ar: AssignedRoom, ranges: dict[str, list[tuple[float, float]]], ox: int, oy: int) -> None:
+    """Window break, placed on the longest *exterior* horizontal (top/bottom) segment if one exists."""
+    rx, ry, rw, rh = ar.x + ox, ar.y + oy, ar.w, ar.h
 
-    # Erase top wall segment
+    top_ext = _exterior_segments(ar.x, ar.x + ar.w, ranges["top"])
+    if not top_ext:
+        return
+    s, e = max(top_ext, key=lambda seg: seg[1] - seg[0])
+    seg_w = e - s
+    if seg_w < 20:
+        return
+
+    ww = min(36, seg_w * 0.6)
+    cx = (s + e) / 2 + ox
+    wy = ry
+
     out.append(
-        f'<line x1="{cx - ww//2}" y1="{wy}" x2="{cx + ww//2}" y2="{wy}" '
+        f'<line x1="{cx - ww/2:.1f}" y1="{wy}" x2="{cx + ww/2:.1f}" y2="{wy}" '
         f'stroke="#fdfbf7" stroke-width="{WALL_T + 2}"/>'
     )
-    # Vertical jamb lines
-    for tx in [cx - ww//2, cx + ww//2]:
+    for tx in [cx - ww / 2, cx + ww / 2]:
         out.append(
-            f'<line x1="{tx}" y1="{wy - 1}" x2="{tx}" y2="{wy + WALL_T + 1}" '
+            f'<line x1="{tx:.1f}" y1="{wy - 1}" x2="{tx:.1f}" y2="{wy + WALL_T + 1}" '
             f'stroke="#1a1a1a" stroke-width="1.2"/>'
         )
-    # Outer glazing line
     out.append(
-        f'<line x1="{cx - ww//2}" y1="{wy + 2}" x2="{cx + ww//2}" y2="{wy + 2}" '
+        f'<line x1="{cx - ww/2:.1f}" y1="{wy + 2}" x2="{cx + ww/2:.1f}" y2="{wy + 2}" '
         f'stroke="#1a1a1a" stroke-width="0.8"/>'
     )
-    # Inner glazing line
     out.append(
-        f'<line x1="{cx - ww//2}" y1="{wy + WALL_T - 2}" '
-        f'x2="{cx + ww//2}" y2="{wy + WALL_T - 2}" '
+        f'<line x1="{cx - ww/2:.1f}" y1="{wy + WALL_T - 2}" '
+        f'x2="{cx + ww/2:.1f}" y2="{wy + WALL_T - 2}" '
         f'stroke="#1a1a1a" stroke-width="0.8"/>'
     )
 
@@ -215,15 +433,11 @@ def _dim_line(
     if side == "bottom":
         lx1, ly = x1, y1 + offset
         lx2     = x2
-        # Extension lines
         out.append(f'<line x1="{x1}" y1="{y1}" x2="{lx1}" y2="{ly}" stroke="#888" stroke-width="0.7"/>')
         out.append(f'<line x1="{x2}" y1="{y2}" x2="{lx2}" y2="{ly}" stroke="#888" stroke-width="0.7"/>')
-        # Main dim line
         out.append(f'<line x1="{lx1}" y1="{ly}" x2="{lx2}" y2="{ly}" stroke="#444" stroke-width="0.9"/>')
-        # Ticks
         for tx in [lx1, lx2]:
             out.append(f'<line x1="{tx-3}" y1="{ly-3}" x2="{tx+3}" y2="{ly+3}" stroke="#444" stroke-width="1.1"/>')
-        # Label background + text
         mx = (lx1 + lx2) // 2
         out.append(f'<rect x="{mx-16}" y="{ly-7}" width="32" height="11" fill="#fdfbf7"/>')
         out.append(
@@ -248,7 +462,6 @@ def _dim_line(
 
 
 def _north_arrow(out: list[str], x: int, y: int) -> None:
-    """Architectural north arrow: two-tone filled arrowhead."""
     out.append(
         f'<polygon points="{x},{y-14} {x-6},{y+6} {x},{y+1} {x+6},{y+6}" '
         f'fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.5"/>'
@@ -270,8 +483,7 @@ def _scale_bar(
     y: int,
     units: str = "metric"
 ) -> None:
-    """5-segment scale bar: each segment = 1 metre."""
-    seg = SCALE * 10   # px per metre
+    seg = SCALE * 10
     n   = 5
     bw  = seg * n
     bx  = canvas_w - bw - 18
@@ -282,11 +494,12 @@ def _scale_bar(
             f'<rect x="{bx + i*seg}" y="{by}" width="{seg}" height="5" '
             f'fill="{fill}" stroke="#1a1a1a" stroke-width="0.7"/>'
         )
+    unit_label = "ft" if units == "imperial" else "m"
     for i in [0, n//2, n]:
         lx = bx + i * seg
         out.append(
             f'<text x="{lx}" y="{by - 2}" text-anchor="middle" '
-            f'font-size="7" font-family="Courier New,monospace" fill="#555">{i}{'ft' if units == 'imperial' else 'm'}</text>'
+            f'font-size="7" font-family="Courier New,monospace" fill="#555">{i}{unit_label}</text>'
         )
     out.append(
         f'<text x="{bx + bw//2}" y="{by + 15}" text-anchor="middle" '
@@ -341,7 +554,6 @@ def render_svg(
     out.append('  </defs>')
     out.append(f'  <rect width="{W}" height="{H}" fill="url(#Mgrid)"/>')
 
-    # Drawing border (double line)
     out.append(
         f'  <rect x="5" y="5" width="{W-10}" height="{H-10}" '
         f'fill="none" stroke="#b0a898" stroke-width="1.5"/>'
@@ -363,7 +575,7 @@ def render_svg(
         f'stroke="#999" stroke-width="0.6"/>'
     )
 
-    # ── ADJACENCY LINES ─────────────────────────────────────────────────────
+    # ── ADJACENCY LINES (debug/relationship overlay, label-based) ───────────
     label_map = {ar.room.label: ar for ar in rooms}
     for la, lb in pairs:
         a = label_map.get(la)
@@ -378,35 +590,21 @@ def render_svg(
             f'stroke-dasharray="4,4" opacity="0.25"/>'
         )
 
-    # ── ROOMS ────────────────────────────────────────────────────────────────
+    # ── SHARED EDGE DETECTION (geometry-based) ───────────────────────────────
+    shared = _compute_shared_edges(rooms)
+
+    # ── ROOM FILLS + LABELS (drawn first, walls layered on top) ─────────────
     for ar in rooms:
-        rx = ar.x + ox
-        ry = ar.y + oy
-        rw = ar.w
-        rh = ar.h
+        rx, ry, rw, rh = ar.x + ox, ar.y + oy, ar.w, ar.h
         fill, tc = ROOM_COLOURS.get(ar.room.room_type, DEFAULT_COLOURS)
 
-        # Fill
-        out.append(
-            f'  <rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" fill="{fill}"/>'
-        )
+        out.append(f'  <rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" fill="{fill}"/>')
 
-        # Hatched walls
-        _hatch_wall(out, rx, ry, rw, rh)
-
-        # Window (exterior rooms only)
-        if ar.room.room_type not in ("hallway", "bathroom", "garage", "utility"):
-            _windows(out, rx, ry, rw, rh)
-
-        # Door swing
-        _door(out, rx, ry, rw, rh)
-
-        # Room name + area label
         label_lines = _wrap_text(ar.room.label, max(6, rw // 9))
         area = _area_label(rw, rh, units)
-        lh          = 14
-        total_h     = len(label_lines) * lh + lh  # +1 for area line
-        ty          = ry + rh // 2 - total_h // 2 + lh
+        lh = 14
+        total_h = len(label_lines) * lh + lh
+        ty = ry + rh // 2 - total_h // 2 + lh
 
         for i, line in enumerate(label_lines):
             out.append(
@@ -416,7 +614,6 @@ def render_svg(
                 f'fill="{tc}" font-weight="700" letter-spacing="0.5">'
                 f'{_escape(line)}</text>'
             )
-
         out.append(
             f'  <text x="{rx+rw//2}" y="{ty + len(label_lines)*lh}" '
             f'text-anchor="middle" font-size="8" '
@@ -424,26 +621,22 @@ def render_svg(
             f'{_escape(area)}</text>'
         )
 
-        # Dimension lines
-        _dim_line(
-    out,
-    rx,
-    ry + rh,
-    rx + rw,
-    ry + rh,
-    _dim_label(rw, units),
-    "bottom"
-)
+        _dim_line(out, rx, ry + rh, rx + rw, ry + rh, _dim_label(rw, units), "bottom")
+        _dim_line(out, rx + rw, ry, rx + rw, ry + rh, _dim_label(rh, units), "right")
 
-        _dim_line(
-    out,
-    rx + rw,
-    ry,
-    rx + rw,
-    ry + rh,
-    _dim_label(rh, units),
-    "right"
-)
+    # ── WALLS: exterior hatched bands per room, then interior partitions ────
+    for ar in rooms:
+        ranges = _room_shared_ranges(ar, shared)
+        _draw_walls(out, ar, ranges, ox, oy)
+
+    _draw_interior_partitions(out, shared, ox, oy)
+
+    # ── WINDOWS + DOORS (after walls, so openings cut cleanly through them) ─
+    for ar in rooms:
+        ranges = _room_shared_ranges(ar, shared)
+        if ar.room.room_type not in ("hallway", "bathroom", "garage", "utility"):
+            _windows(out, ar, ranges, ox, oy)
+        _place_door(out, ar, shared, ranges, ox, oy)
 
     # ── NORTH ARROW + SCALE BAR ─────────────────────────────────────────────
     _north_arrow(out, 26, H - 44)

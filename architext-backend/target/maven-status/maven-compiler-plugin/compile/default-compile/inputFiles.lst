@@ -1,0 +1,17 @@
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\ArchitextApplication.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\config\GlobalExceptionHandler.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\config\SecurityConfig.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\controller\AuthController.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\controller\LayoutController.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\controller\ParseController.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\dto\ApiResponse.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\dto\AuthResponse.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\dto\LoginRequest.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\dto\SignupRequest.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\model\User.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\repository\UserRepository.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\security\JwtAuthFilter.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\security\JwtUtils.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\security\UserDetailsServiceImpl.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\service\AuthService.java
+C:\Users\gideo\OneDrive\Documentos\ARCHITEXT\architext-backend\src\main\java\com\architext\service\FlaskProxyService.java
