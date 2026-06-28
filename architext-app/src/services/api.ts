@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface Room {
   label: string;
@@ -24,25 +24,28 @@ export interface GenerateResponse {
   error?: string;
 }
 
-const DEFAULT_BASE = 'http://127.0.0.1:8080';
+const DEFAULT_BASE = "http://172.20.10.2:5000";
 
 async function getApiBase(): Promise<string> {
-  const stored = await AsyncStorage.getItem('architext_api');
+  const stored = await AsyncStorage.getItem("architext_api");
   return stored || DEFAULT_BASE;
 }
 
 async function authHeaders(): Promise<HeadersInit> {
-  const token = await AsyncStorage.getItem('architext_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const token = await AsyncStorage.getItem("architext_token");
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
 
-export async function generateLayout(text: string, units = 'imperial'): Promise<GenerateResponse> {
+export async function generateLayout(
+  text: string,
+  units = "imperial",
+): Promise<GenerateResponse> {
   const base = await getApiBase();
   const headers = await authHeaders();
   const res = await fetch(`${base}/api/layout/generate`, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: JSON.stringify({ text, units }),
   });
