@@ -49,7 +49,7 @@ bcrypt = Bcrypt(app)
 # Set up Flask-Login to manage logged-in users
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "api_login"  # where to redirect if login is required
+login_manager.login_view = "api_login"  # type: ignore
 
 # Create the database tables (if they don't already exist) when the app starts
 with app.app_context():
@@ -255,23 +255,24 @@ def api_layout_generate():
     ]
 
     if isinstance(parsed.preferences, dict):
-         unit_pref = parsed.preferences.get("units", "metric")
+            unit_pref = parsed.preferences.get("units", "metric")
     else:
-        unit_pref = "metric"
-        svg = render_svg(layout, title=layout.template.name, units=unit_pref)
+            unit_pref = "metric"
+
+    svg = render_svg(layout, title=layout.template.name, units=unit_pref)
 
     return jsonify({
-        "ok": True,
-        "plan": {
-            "title": layout.template.name,
-            "template": layout.template.template_id,
-            "rooms": rooms_out,
-            "adjacencies": [list(p) for p in layout.adjacency_pairs],
-            "explanation": explanation,
-            "svg": render_svg(layout, title=layout.template.name, units=unit_pref),
-            "canvas": {"w": layout.canvas_w, "h": layout.canvas_h},
-        },
-    })
+            "ok": True,
+            "plan": {
+                "title": layout.template.name,
+                "template": layout.template.template_id,
+                "rooms": rooms_out,
+                "adjacencies": [list(p) for p in layout.adjacency_pairs],
+                "explanation": explanation,
+                "svg": svg,
+                "canvas": {"w": layout.canvas_w, "h": layout.canvas_h},
+            },
+        })
 
 
 # ---------------------------------------------------------------------------
