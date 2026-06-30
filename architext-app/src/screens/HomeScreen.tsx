@@ -13,6 +13,7 @@ import { EXAMPLES, ROOM_COLOURS, DEFAULT_ROOM_COLOUR } from '../constants/theme'
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { FloorPlan3DModal } from '../components/FloorPlan3DModal';
 
 interface ManualRoom { name: string; w: string; h: string; }
 
@@ -27,6 +28,7 @@ export function HomeScreen() {
   const [error, setError] = useState('');
   const [plan, setPlan] = useState<Plan | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
+  const [show3D, setShow3D] = useState(false);
   const [savedNow, setSavedNow] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [roomW, setRoomW] = useState('');
@@ -100,6 +102,11 @@ export function HomeScreen() {
     }
   };
 
+  const handle3DToggle = () => {
+    if (!plan || plan.rooms.length === 0) return;
+    setShow3D(true);
+  };
+
   const svgHtml = plan?.svg
     ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fdfaf7}svg{width:100%;height:auto}</style></head><body>${plan.svg}</body></html>`
     : null;
@@ -110,155 +117,173 @@ export function HomeScreen() {
   const expDivider = 'rgba(255,255,255,0.08)';
 
   return (
-    <ScrollView style={[styles.root, { backgroundColor: theme.pageBg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.eyebrowRow}>
-        <Ionicons name="grid-outline" size={12} color={theme.muted} />
-        <Text style={[styles.eyebrow, { color: theme.muted }]}>Floor Plan Builder</Text>
-      </View>
-      <Text style={[styles.pageTitle, { color: theme.dark }]}>Design your space</Text>
-      <Text style={[styles.pageSub, { color: theme.muted }]}>Describe rooms in natural language — or add them one by one.</Text>
+    <>
+      <ScrollView
+        style={[styles.root, { backgroundColor: theme.pageBg }]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.eyebrowRow}>
+          <Ionicons name="grid-outline" size={12} color={theme.muted} />
+          <Text style={[styles.eyebrow, { color: theme.muted }]}>Floor Plan Builder</Text>
+        </View>
+        <Text style={[styles.pageTitle, { color: theme.dark }]}>Design your space</Text>
+        <Text style={[styles.pageSub, { color: theme.muted }]}>Describe rooms in natural language — or add them one by one.</Text>
 
-      <Card>
-        <View style={styles.descHeader}>
-          <View style={[styles.descIcon, { backgroundColor: theme.brownBg }]}>
-            <Ionicons name="sparkles-outline" size={16} color={theme.brown} />
+        <Card>
+          <View style={styles.descHeader}>
+            <View style={[styles.descIcon, { backgroundColor: theme.brownBg }]}>
+              <Ionicons name="sparkles-outline" size={16} color={theme.brown} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.descTitle, { color: theme.dark }]}>Describe Your Space</Text>
+              <Text style={[styles.descSub, { color: theme.muted }]}>Natural language or room-per-line</Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.descTitle, { color: theme.dark }]}>Describe Your Space</Text>
-            <Text style={[styles.descSub, { color: theme.muted }]}>Natural language or room-per-line</Text>
-          </View>
-        </View>
-        <TextInput
-          style={[styles.textarea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.dark }]}
-          placeholder="e.g. 3-bedroom house with open kitchen, living room, 2 bathrooms and a garage"
-          placeholderTextColor={theme.muted}
-          value={description}
-          onChangeText={setDescription}
-          multiline numberOfLines={5} textAlignVertical="top"
-        />
-        {error ? (
-          <View style={[styles.errorBox, { backgroundColor: theme.errorBg, borderColor: theme.errorBorder }]}>
-            <Text style={[styles.errorText, { color: theme.errorText }]}>{error}</Text>
-          </View>
-        ) : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-          {Object.keys(EXAMPLES).map((key) => (
-            <TouchableOpacity key={key} onPress={() => setDescription(EXAMPLES[key])} style={[styles.exChip, { borderColor: theme.border }]}>
-              <Text style={[styles.exChipText, { color: theme.mid }]}>{key}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <Button label={generating ? 'Generating…' : 'Generate Floor Plan'} onPress={handleGenerate} loading={generating} />
-      </Card>
+          <TextInput
+            style={[styles.textarea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.dark }]}
+            placeholder="e.g. 3-bedroom house with open kitchen, living room, 2 bathrooms and a garage"
+            placeholderTextColor={theme.muted}
+            value={description}
+            onChangeText={setDescription}
+            multiline numberOfLines={5} textAlignVertical="top"
+          />
+          {error ? (
+            <View style={[styles.errorBox, { backgroundColor: theme.errorBg, borderColor: theme.errorBorder }]}>
+              <Text style={[styles.errorText, { color: theme.errorText }]}>{error}</Text>
+            </View>
+          ) : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            {Object.keys(EXAMPLES).map((key) => (
+              <TouchableOpacity key={key} onPress={() => setDescription(EXAMPLES[key])} style={[styles.exChip, { borderColor: theme.border }]}>
+                <Text style={[styles.exChipText, { color: theme.mid }]}>{key}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <Button label={generating ? 'Generating…' : 'Generate Floor Plan'} onPress={handleGenerate} loading={generating} />
+        </Card>
 
-      <Card>
-        <View style={styles.rowGap}>
-          <Ionicons name="add" size={14} color={theme.mid} />
-          <Text style={[styles.cardTitle, { color: theme.dark }]}>Add a Room Manually</Text>
-        </View>
-        <Input placeholder="Room name (e.g. Master Bedroom)" value={roomName} onChangeText={setRoomName} containerStyle={{ marginBottom: 10 }} />
-        <View style={styles.dimRow}>
-          <Input placeholder="Width (ft)" value={roomW} onChangeText={setRoomW} keyboardType="numeric" containerStyle={{ flex: 1 }} />
-          <View style={{ width: 10 }} />
-          <Input placeholder="Height (ft)" value={roomH} onChangeText={setRoomH} keyboardType="numeric" containerStyle={{ flex: 1 }} />
-        </View>
-        <Button label="Add Room & Generate" onPress={handleAddRoom} variant="ghost" style={{ marginTop: 6 }} />
-        {manualRooms.length > 0 && (
-          <View style={styles.roomTags}>
-            {manualRooms.map((r, i) => (
-              <View key={i} style={[styles.roomTag, { backgroundColor: theme.brownBg, borderColor: '#e0d4cb' }]}>
-                <Text style={[styles.roomTagText, { color: theme.brownDark }]}>{r.name}{r.w && r.h ? ` ${r.w}×${r.h}` : ''}</Text>
-                <TouchableOpacity onPress={() => setManualRooms((p) => p.filter((_, idx) => idx !== i))}>
-                  <Ionicons name="close" size={12} color={theme.muted} />
+        <Card>
+          <View style={styles.rowGap}>
+            <Ionicons name="add" size={14} color={theme.mid} />
+            <Text style={[styles.cardTitle, { color: theme.dark }]}>Add a Room Manually</Text>
+          </View>
+          <Input placeholder="Room name (e.g. Master Bedroom)" value={roomName} onChangeText={setRoomName} containerStyle={{ marginBottom: 10 }} />
+          <View style={styles.dimRow}>
+            <Input placeholder="Width (ft)" value={roomW} onChangeText={setRoomW} keyboardType="numeric" containerStyle={{ flex: 1 }} />
+            <View style={{ width: 10 }} />
+            <Input placeholder="Height (ft)" value={roomH} onChangeText={setRoomH} keyboardType="numeric" containerStyle={{ flex: 1 }} />
+          </View>
+          <Button label="Add Room & Generate" onPress={handleAddRoom} variant="ghost" style={{ marginTop: 6 }} />
+          {manualRooms.length > 0 && (
+            <View style={styles.roomTags}>
+              {manualRooms.map((r, i) => (
+                <View key={i} style={[styles.roomTag, { backgroundColor: theme.brownBg, borderColor: '#e0d4cb' }]}>
+                  <Text style={[styles.roomTagText, { color: theme.brownDark }]}>{r.name}{r.w && r.h ? ` ${r.w}×${r.h}` : ''}</Text>
+                  <TouchableOpacity onPress={() => setManualRooms((p) => p.filter((_, idx) => idx !== i))}>
+                    <Ionicons name="close" size={12} color={theme.muted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+
+        <Card>
+          <View style={styles.outputHeader}>
+            <View>
+              <Text style={[styles.cardTitle, { color: theme.dark }]}>Floor Plan Output</Text>
+              <Text style={[styles.outputSub, { color: theme.muted }]}>
+                {plan ? `${plan.rooms.length} rooms · ${plan.template}` : generating ? 'Generating…' : 'Your floor plan will appear here'}
+              </Text>
+            </View>
+            {plan && (
+              <View style={styles.actionBtns}>
+                <TouchableOpacity onPress={handleExport} style={[styles.iconBtn, { borderColor: theme.border }]}>
+                  <Ionicons name="share-outline" size={14} color={theme.mid} />
+                  <Text style={[styles.iconBtnText, { color: theme.mid }]}>Export</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} style={[styles.iconBtn, { borderColor: theme.border }]}>
+                  <Ionicons name={savedNow ? 'bookmark' : 'bookmark-outline'} size={14} color={savedNow ? theme.brown : theme.mid} />
+                  <Text style={[styles.iconBtnText, { color: savedNow ? theme.brown : theme.mid }]}>{savedNow ? 'Saved!' : 'Save'}</Text>
                 </TouchableOpacity>
               </View>
-            ))}
+            )}
           </View>
-        )}
-      </Card>
 
-      <Card>
-        <View style={styles.outputHeader}>
-          <View>
-            <Text style={[styles.cardTitle, { color: theme.dark }]}>Floor Plan Output</Text>
-            <Text style={[styles.outputSub, { color: theme.muted }]}>
-              {plan ? `${plan.rooms.length} rooms · ${plan.template}` : generating ? 'Generating…' : 'Your floor plan will appear here'}
-            </Text>
-          </View>
           {plan && (
-            <View style={styles.actionBtns}>
-              <TouchableOpacity onPress={handleExport} style={[styles.iconBtn, { borderColor: theme.border }]}>
-                <Ionicons name="share-outline" size={14} color={theme.mid} />
-                <Text style={[styles.iconBtnText, { color: theme.mid }]}>Export</Text>
+            <View style={styles.viewToggle}>
+              <TouchableOpacity
+                onPress={() => setView('2d')}
+                style={[styles.viewBtn, { borderColor: view === '2d' ? theme.brown : theme.border, backgroundColor: view === '2d' ? theme.brownBg : theme.white }]}
+              >
+                <Ionicons name="square-outline" size={13} color={view === '2d' ? theme.brown : theme.mid} />
+                <Text style={[styles.viewBtnText, { color: view === '2d' ? theme.brown : theme.mid }]}>2D</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={[styles.iconBtn, { borderColor: theme.border }]}>
-                <Ionicons name={savedNow ? 'bookmark' : 'bookmark-outline'} size={14} color={savedNow ? theme.brown : theme.mid} />
-                <Text style={[styles.iconBtnText, { color: savedNow ? theme.brown : theme.mid }]}>{savedNow ? 'Saved!' : 'Save'}</Text>
+              <TouchableOpacity
+                onPress={handle3DToggle}
+                style={[styles.viewBtn, { borderColor: view === '3d' ? theme.brown : theme.border, backgroundColor: view === '3d' ? theme.brownBg : theme.white }]}
+              >
+                <Ionicons name="cube-outline" size={13} color={view === '3d' ? theme.brown : theme.mid} />
+                <Text style={[styles.viewBtnText, { color: view === '3d' ? theme.brown : theme.mid }]}>3D</Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
 
-        {plan && (
-          <View style={styles.viewToggle}>
-            {(['2d', '3d'] as const).map((v) => (
-              <TouchableOpacity key={v} onPress={() => setView(v)} style={[styles.viewBtn, { borderColor: view === v ? theme.brown : theme.border, backgroundColor: view === v ? theme.brownBg : theme.white }]}>
-                <Ionicons name={v === '2d' ? 'square-outline' : 'cube-outline'} size={13} color={view === v ? theme.brown : theme.mid} />
-                <Text style={[styles.viewBtnText, { color: view === v ? theme.brown : theme.mid }]}>{v.toUpperCase()}</Text>
-              </TouchableOpacity>
+          <View style={[styles.canvas, { backgroundColor: plan ? '#fdfaf7' : theme.brownBg }]}>
+            {generating ? (
+              <View style={styles.centerPad}>
+                <ActivityIndicator color={theme.brown} size="large" />
+                <Text style={[styles.spinnerText, { color: theme.muted }]}>Analysing and building layout…</Text>
+              </View>
+            ) : plan && view === '2d' && svgHtml ? (
+              <WebView source={{ html: svgHtml }} style={styles.webview} scrollEnabled={false} showsVerticalScrollIndicator={false} />
+            ) : (
+              <View style={styles.centerPad}>
+                <View style={[styles.placeholderIcon, { backgroundColor: 'rgba(155,99,63,0.1)' }]}>
+                  <Ionicons name="grid-outline" size={24} color={theme.brown} />
+                </View>
+                <Text style={[styles.placeholderText, { color: theme.muted }]}>Describe your space{'\n'}to generate a plan</Text>
+              </View>
+            )}
+          </View>
+
+          {plan && plan.rooms.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+              {plan.rooms.map((r, i) => {
+                const [bg, tc] = ROOM_COLOURS[r.room_type] || DEFAULT_ROOM_COLOUR;
+                return (
+                  <View key={i} style={[styles.roomChip, { backgroundColor: bg, borderColor: tc + '40' }]}>
+                    <Text style={[styles.roomChipText, { color: tc }]}>{r.label}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+        </Card>
+
+        {plan?.explanation?.length ? (
+          <View style={[styles.expCard, { backgroundColor: expBg }]}>
+            <Text style={[styles.expTitle, { color: expDot }]}>LAYOUT DECISIONS</Text>
+            {plan.explanation.map((e, i) => (
+              <View key={i} style={[styles.logEntry, { borderBottomColor: expDivider }]}>
+                <View style={[styles.logDot, { backgroundColor: expDot }]} />
+                <Text style={[styles.logText, { color: expText }]}>{e}</Text>
+              </View>
             ))}
           </View>
-        )}
+        ) : null}
+      </ScrollView>
 
-        <View style={[styles.canvas, { backgroundColor: plan ? '#fdfaf7' : theme.brownBg }]}>
-          {generating ? (
-            <View style={styles.centerPad}>
-              <ActivityIndicator color={theme.brown} size="large" />
-              <Text style={[styles.spinnerText, { color: theme.muted }]}>Analysing and building layout…</Text>
-            </View>
-          ) : plan && view === '2d' && svgHtml ? (
-            <WebView source={{ html: svgHtml }} style={styles.webview} scrollEnabled={false} showsVerticalScrollIndicator={false} />
-          ) : plan && view === '3d' ? (
-            <View style={styles.centerPad}>
-              <Ionicons name="cube-outline" size={32} color={theme.brown} />
-              <Text style={[styles.placeholderText, { color: theme.muted }]}>3D view coming soon.</Text>
-            </View>
-          ) : (
-            <View style={styles.centerPad}>
-              <View style={[styles.placeholderIcon, { backgroundColor: 'rgba(155,99,63,0.1)' }]}>
-                <Ionicons name="grid-outline" size={24} color={theme.brown} />
-              </View>
-              <Text style={[styles.placeholderText, { color: theme.muted }]}>Describe your space{'\n'}to generate a plan</Text>
-            </View>
-          )}
-        </View>
-
-        {plan && plan.rooms.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-            {plan.rooms.map((r, i) => {
-              const [bg, tc] = ROOM_COLOURS[r.room_type] || DEFAULT_ROOM_COLOUR;
-              return (
-                <View key={i} style={[styles.roomChip, { backgroundColor: bg, borderColor: tc + '40' }]}>
-                  <Text style={[styles.roomChipText, { color: tc }]}>{r.label}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-      </Card>
-
-      {plan?.explanation?.length ? (
-        <View style={[styles.expCard, { backgroundColor: expBg }]}>
-          <Text style={[styles.expTitle, { color: expDot }]}>LAYOUT DECISIONS</Text>
-          {plan.explanation.map((e, i) => (
-            <View key={i} style={[styles.logEntry, { borderBottomColor: expDivider }]}>
-              <View style={[styles.logDot, { backgroundColor: expDot }]} />
-              <Text style={[styles.logText, { color: expText }]}>{e}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-    </ScrollView>
+      {/* 3D Full-screen Modal */}
+      {plan && (
+        <FloorPlan3DModal
+          visible={show3D}
+          rooms={plan.rooms}
+          onClose={() => { setShow3D(false); setView('2d'); }}
+        />
+      )}
+    </>
   );
 }
 
