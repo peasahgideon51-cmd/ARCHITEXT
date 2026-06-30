@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Architext — Auth Test Page</title>
+  <style>
+    /* Basic styling just to make the test page easy to read */
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; }
+    input { display: block; width: 100%; margin: 8px 0; padding: 8px; }
+    button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+  <h2>Architext — Backend Test Page</h2>
+  <p>Use this page to test signup, login, and logout.</p>
+
+  <h3>Sign Up</h3>
+  <input id="signup-email" placeholder="Email" />
+  <input id="signup-password" type="password" placeholder="Password" />
+  <button onclick="signup()">Sign Up</button>
+
+  <h3>Log In</h3>
+  <input id="login-email" placeholder="Email" />
+  <input id="login-password" type="password" placeholder="Password" />
+  <button onclick="login()">Log In</button>
+
+  <h3>Log Out</h3>
+  <button onclick="logout()">Log Out</button>
+
+  <h3>Result:</h3>
+  <pre id="result">Nothing yet...</pre>
+
+  <script>
+    // Helper function to show the server's response on the page
+    function showResult(data) {
+      document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+    }
+
+    // Sends a signup request using the email/password typed in the Sign Up box
+    async function signup() {
+      const email = document.getElementById("signup-email").value;
+      const password = document.getElementById("signup-password").value;
+
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      showResult(await res.json());
+    }
+
+    // Sends a login request using the email/password typed in the Log In box
+    async function login() {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      showResult(await res.json());
+    }
+
+    // Logs the current user out
+    async function logout() {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      showResult(await res.json());
+    }
+  </script>
+
+</body>
+</html>
