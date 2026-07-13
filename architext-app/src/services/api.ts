@@ -13,6 +13,7 @@ export interface Plan {
   title: string;
   template: string;
   rooms: Room[];
+  adjacencies: [string, string][];
   svg: string;
   explanation: string[];
   canvas: { w: number; h: number };

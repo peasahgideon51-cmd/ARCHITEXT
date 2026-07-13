@@ -46,6 +46,7 @@ export function HomeScreen() {
         title: entry.title,
         template: '',
         rooms: [],
+        adjacencies: entry.adjacencies || [],
         svg: entry.svg,
         explanation: entry.explanation || [],
         canvas: { w: 0, h: 0 },
@@ -280,6 +281,7 @@ export function HomeScreen() {
         <FloorPlan3DModal
           visible={show3D}
           rooms={plan.rooms}
+          adjacencies={plan.adjacencies}
           onClose={() => { setShow3D(false); setView('2d'); }}
         />
       )}
