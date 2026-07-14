@@ -95,7 +95,18 @@ export const THREE_VIEWER_HTML = `<!DOCTYPE html>
   <button class="cam-btn" id="btn-top" onclick="setCam('top')">Top</button>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  // Surface any failure directly in the loading UI — there's no console
+  // access on-device, so a silent console.error just looks like a hang.
+  function showLoadError(msg) {
+    var el = document.getElementById('loading-text');
+    var sp = document.querySelector('.spinner');
+    if (el) { el.textContent = msg; el.style.color = '#b85c5c'; }
+    if (sp) sp.style.display = 'none';
+  }
+  window.onerror = function(msg) { showLoadError('Error: ' + msg); return false; };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="showLoadError('Could not load the 3D engine — check your internet connection')"></script>
 <script>
 // ---------------------------------------------------------------------------
 // Constants
@@ -110,6 +121,16 @@ const WIN_H     = 0.95;
 const WIN_SILL  = 0.85;
 const CUTAWAY_H = 1.30;       // dollhouse wall height in overview/top mode
 const FULL_H    = 999;        // sentinel = use actual room ceiling height
+
+// Edge-matching tolerance for shared-wall geometry, in metres. The Flask
+// layout engine inserts a 16px gap between every grid cell (PADDING in
+// layout_engine.py), which converts to 0.16m here (PX_TO_M = 1/100). This
+// must stay comfortably above that gap or genuinely touching rooms will
+// never be recognised as sharing a wall. Which pairs count as "shared" at
+// all is decided by the authoritative adjacencies list from the layout
+// engine (see buildSharedEdges) — this tolerance only resolves the wall's
+// exact position once a pair is already confirmed adjacent.
+const EDGE_TOL  = 0.20;
 
 const CEILING_HEIGHTS = {
   living_room: 2.7, dining_room: 2.7,
@@ -239,25 +260,37 @@ function rangeOverlap(a1, a2, b1, b2) {
   return Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
 }
 
-function buildSharedEdges(rects) {
+function buildSharedEdges(rects, adjacencyPairs) {
   const edges = [];
-  const TOL = 0.08;
+  // Authoritative gate: only pairs the layout engine actually placed
+  // grid-adjacent are eligible to be treated as a shared wall. Geometry
+  // below only resolves *where* that wall sits, never *whether* it exists.
+  const adjSet = new Set(
+    (adjacencyPairs || []).map(([a, b]) => [a, b].sort().join('|'))
+  );
+
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
       const a = rects[i], b = rects[j];
+      if (!adjSet.has([a.label, b.label].sort().join('|'))) continue;
+
       // Vertical shared wall
-      if (Math.abs(a.x2 - b.x1) < TOL) {
+      if (Math.abs(a.x2 - b.x1) < EDGE_TOL) {
         const ov = rangeOverlap(a.y1, a.y2, b.y1, b.y2);
         if (ov > 0.2) edges.push({ axis: 'v', coord: a.x2, span0: Math.max(a.y1,b.y1), span1: Math.min(a.y2,b.y2), ra: a, rb: b });
       }
-      if (Math.abs(b.x2 - a.x1) < TOL) {
+      if (Math.abs(b.x2 - a.x1) < EDGE_TOL) {
         const ov = rangeOverlap(a.y1, a.y2, b.y1, b.y2);
         if (ov > 0.2) edges.push({ axis: 'v', coord: a.x1, span0: Math.max(a.y1,b.y1), span1: Math.min(a.y2,b.y2), ra: b, rb: a });
       }
-      // Horizontal shared wall
-      if (Math.abs(a.y2 - b.y1) < TOL) {
+      // Horizontal shared wall (both directions — a above b, or b above a)
+      if (Math.abs(a.y2 - b.y1) < EDGE_TOL) {
         const ov = rangeOverlap(a.x1, a.x2, b.x1, b.x2);
         if (ov > 0.2) edges.push({ axis: 'h', coord: a.y2, span0: Math.max(a.x1,b.x1), span1: Math.min(a.x2,b.x2), ra: a, rb: b });
+      }
+      if (Math.abs(b.y2 - a.y1) < EDGE_TOL) {
+        const ov = rangeOverlap(a.x1, a.x2, b.x1, b.x2);
+        if (ov > 0.2) edges.push({ axis: 'h', coord: b.y2, span0: Math.max(a.x1,b.x1), span1: Math.min(a.x2,b.x2), ra: b, rb: a });
       }
     }
   }
@@ -265,12 +298,11 @@ function buildSharedEdges(rects) {
 }
 
 function isSharedEdge(r, side, sharedEdges) {
-  const TOL = 0.08;
   for (const e of sharedEdges) {
-    if (side === 'left'   && e.axis === 'v' && Math.abs(e.coord - r.x1) < TOL && rangeOverlap(r.y1,r.y2,e.span0,e.span1) > 0.1) return true;
-    if (side === 'right'  && e.axis === 'v' && Math.abs(e.coord - r.x2) < TOL && rangeOverlap(r.y1,r.y2,e.span0,e.span1) > 0.1) return true;
-    if (side === 'top'    && e.axis === 'h' && Math.abs(e.coord - r.y1) < TOL && rangeOverlap(r.x1,r.x2,e.span0,e.span1) > 0.1) return true;
-    if (side === 'bottom' && e.axis === 'h' && Math.abs(e.coord - r.y2) < TOL && rangeOverlap(r.x1,r.x2,e.span0,e.span1) > 0.1) return true;
+    if (side === 'left'   && e.axis === 'v' && Math.abs(e.coord - r.x1) < EDGE_TOL && rangeOverlap(r.y1,r.y2,e.span0,e.span1) > 0.1) return true;
+    if (side === 'right'  && e.axis === 'v' && Math.abs(e.coord - r.x2) < EDGE_TOL && rangeOverlap(r.y1,r.y2,e.span0,e.span1) > 0.1) return true;
+    if (side === 'top'    && e.axis === 'h' && Math.abs(e.coord - r.y1) < EDGE_TOL && rangeOverlap(r.x1,r.x2,e.span0,e.span1) > 0.1) return true;
+    if (side === 'bottom' && e.axis === 'h' && Math.abs(e.coord - r.y2) < EDGE_TOL && rangeOverlap(r.x1,r.x2,e.span0,e.span1) > 0.1) return true;
   }
   return false;
 }
@@ -278,7 +310,7 @@ function isSharedEdge(r, side, sharedEdges) {
 // ---------------------------------------------------------------------------
 // Build scene
 // ---------------------------------------------------------------------------
-function buildScene(rooms) {
+function buildScene(rooms, adjacencyPairs) {
   wallMeshes = [];
   while (scene.children.length > 0) scene.remove(scene.children[0]);
 
@@ -294,8 +326,13 @@ function buildScene(rooms) {
   sun.shadow.camera.top  =  25; sun.shadow.camera.bottom = -25;
   scene.add(sun);
 
-  scene.add(Object.assign(new THREE.DirectionalLight(0xd0e0ff, 0.25), { position: new THREE.Vector3(-8, 6, -10) }));
-  scene.add(Object.assign(new THREE.DirectionalLight(0xffeedd, 0.15), { position: new THREE.Vector3(0, -5, 0) }));
+  const fillLight = new THREE.DirectionalLight(0xd0e0ff, 0.25);
+  fillLight.position.set(-8, 6, -10);
+  scene.add(fillLight);
+
+  const bounceLight = new THREE.DirectionalLight(0xffeedd, 0.15);
+  bounceLight.position.set(0, -5, 0);
+  scene.add(bounceLight);
 
   // ── Convert rooms to metre-space rects ───────────────────────────────────
   const rects = rooms
@@ -323,7 +360,7 @@ function buildScene(rooms) {
   sceneCenter.set((minX+maxX)/2, 0, (minZ+maxZ)/2);
   sceneDiag = Math.sqrt((maxX-minX)**2 + (maxZ-minZ)**2);
 
-  const sharedEdges = buildSharedEdges(rects);
+  const sharedEdges = buildSharedEdges(rects, adjacencyPairs);
   const doorPlaced  = new Set();
 
   // ── Per-room geometry ─────────────────────────────────────────────────────
@@ -372,12 +409,11 @@ function buildScene(rooms) {
         for (const e of sharedEdges) {
           const key = [e.ra.label, e.rb.label].sort().join('|') + e.axis;
           if (doorPlaced.has(key)) continue;
-          const TOL = 0.08;
           let match = false;
-          if (s.id === 'left'   && e.axis==='v' && Math.abs(e.coord - r.x1) < TOL) match = true;
-          if (s.id === 'right'  && e.axis==='v' && Math.abs(e.coord - r.x2) < TOL) match = true;
-          if (s.id === 'top'    && e.axis==='h' && Math.abs(e.coord - r.y1) < TOL) match = true;
-          if (s.id === 'bottom' && e.axis==='h' && Math.abs(e.coord - r.y2) < TOL) match = true;
+          if (s.id === 'left'   && e.axis==='v' && Math.abs(e.coord - r.x1) < EDGE_TOL) match = true;
+          if (s.id === 'right'  && e.axis==='v' && Math.abs(e.coord - r.x2) < EDGE_TOL) match = true;
+          if (s.id === 'top'    && e.axis==='h' && Math.abs(e.coord - r.y1) < EDGE_TOL) match = true;
+          if (s.id === 'bottom' && e.axis==='h' && Math.abs(e.coord - r.y2) < EDGE_TOL) match = true;
           if (match && s.len > DOOR_W + 0.2) {
             doorOpenX = (s.len - DOOR_W) / 2;
             doorOpenW = DOOR_W;
@@ -506,22 +542,24 @@ function setCam(preset) {
   if (btn) btn.classList.add('active');
 
   const cx = sceneCenter.x, cz = sceneCenter.z;
-  const d  = sceneDiag;
+  // Minimum radius floor prevents a very small/compact plan (e.g. a studio)
+  // from putting the camera uncomfortably close to — or inside — a wall.
+  const d  = Math.max(sceneDiag, 4);
 
   if (preset === 'overview') {
     orbitState.theta  = Math.PI * 0.35;
     orbitState.phi    = Math.PI * 0.28;
-    orbitState.radius = d * 1.05;
+    orbitState.radius = d * 1.45;
     applyDollhouseMode(true);
   } else if (preset === 'eyelevel') {
     orbitState.theta  = Math.PI * 0.35;
-    orbitState.phi    = Math.PI * 0.42;
-    orbitState.radius = d * 0.85;
+    orbitState.phi    = Math.PI * 0.38;
+    orbitState.radius = d * 1.35;
     applyDollhouseMode(false);
   } else if (preset === 'top') {
     orbitState.theta  = 0.001;
     orbitState.phi    = 0.05;
-    orbitState.radius = d * 1.1;
+    orbitState.radius = d * 1.25;
     applyDollhouseMode(true);
   }
 
@@ -600,7 +638,7 @@ function init() {
   scene    = new THREE.Scene();
   scene.background = new THREE.Color(0xf5f0e8);
 
-  camera   = new THREE.PerspectiveCamera(42, canvas.clientWidth / canvas.clientHeight, 0.05, 300);
+  camera   = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.05, 300);
   camera.position.set(8, 8, 8);
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -635,17 +673,31 @@ function handleMessage(e) {
   try {
     const msg = JSON.parse(e.data);
     if (msg.type === 'rooms' && Array.isArray(msg.rooms)) {
-      buildScene(msg.rooms);
+      buildScene(msg.rooms, Array.isArray(msg.adjacencies) ? msg.adjacencies : []);
       document.getElementById('loading').style.display = 'none';
     }
-  } catch(err) { console.error(err); }
+  } catch(err) {
+    console.error(err);
+    showLoadError('Could not build the model: ' + (err && err.message ? err.message : err));
+  }
 }
 
 window.addEventListener('message', handleMessage);
 document.addEventListener('message', handleMessage);
 
 init();
+
+// If nothing has hidden the loading screen within 10s, the room data never
+// arrived or something stalled silently — surface that instead of an
+// unexplained infinite spinner.
+setTimeout(function() {
+  const loading = document.getElementById('loading');
+  if (loading && loading.style.display !== 'none') {
+    showLoadError('Still waiting for floor plan data — try reopening the 3D view');
+  }
+}, 10000);
 </script>
 </body>
 </html>
 `;
+
