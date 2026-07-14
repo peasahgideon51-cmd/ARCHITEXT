@@ -39,7 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
-const BASE_URL = "http://100.66.126.11:8080";
+const BASE_URL = "http://172.20.10.2:8080";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -87,7 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       await persistSession(u, data.token);
       return { ok: true };
-    } catch {
+    } catch (error) {
+      console.log("Login error:", error);
       return { ok: false, error: "Could not reach the server." };
     }
   };
