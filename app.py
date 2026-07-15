@@ -5,10 +5,12 @@ Routes:
   POST /api/parse/input      Accepts raw text; returns structured room data
   POST /api/layout/generate  Takes parsed data; returns SVG + explanation
   GET  /api/layout/templates Returns available base templates
+  GET  /health                Unauthenticated health check
   GET  /                     Serves the frontend HTML
 """
 
 from __future__ import annotations
+import os
 import json
 from dataclasses import asdict
 from flask import Flask, request, jsonify, send_from_directory, abort
@@ -18,9 +20,35 @@ from parser.parser import parse, ParsedLayout
 from layout.layout_engine import generate_layout, TEMPLATES
 from renderer.renderer import render_svg, ROOM_COLOURS, DEFAULT_COLOURS # 
 from explanation.explanation import generate_explanation
+from dotenv import load_dotenv
+load_dotenv()
+
+
 
 app = Flask(__name__, static_folder="static")
-CORS(app)   # allow the frontend to call the API from any origin during development
+CORS(app) 
+  # allow the frontend to call the API from any origin during development
+
+# ---------------------------------------------------------------------------
+# Internal access control
+# ---------------------------------------------------------------------------
+# Flask is deployed as a public Render web service (free tier doesn't support
+# true private services). Spring Boot is the only intended caller in
+# production, so every request except the health check must present the
+# shared secret in the X-Internal-Key header. Requests without it are
+# rejected before touching any route logic below.
+
+INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
+
+@app.before_request
+def check_internal_key():
+    if request.path == "/health":
+        return  # health checks stay unauthenticated
+    if not INTERNAL_API_KEY:
+        return jsonify({"ok": False, "error": "Server misconfigured"}), 500
+    if request.headers.get("X-Internal-Key") != INTERNAL_API_KEY:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
 # ---------------------------------------------------------------------------
 # Authentication & Database Setup
 # ---------------------------------------------------------------------------
@@ -298,6 +326,15 @@ def api_layout_templates():
             for t in TEMPLATES
         ],
     })
+
+
+# ---------------------------------------------------------------------------
+# GET /health
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+def health():
+    return jsonify({"ok": True}), 200
 
 
 # ---------------------------------------------------------------------------

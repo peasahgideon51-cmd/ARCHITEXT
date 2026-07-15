@@ -20,9 +20,13 @@ public class FlaskProxyService {
 
     private final RestTemplate restTemplate;
     private final String flaskBaseUrl;
+    private final String flaskInternalKey;
 
-    public FlaskProxyService(@Value("${architext.flask.base-url}") String flaskBaseUrl) {
+    public FlaskProxyService(
+            @Value("${architext.flask.base-url}") String flaskBaseUrl,
+            @Value("${architext.flask.internal-key}") String flaskInternalKey) {
         this.flaskBaseUrl = flaskBaseUrl;
+        this.flaskInternalKey = flaskInternalKey;
         this.restTemplate = new RestTemplate();
     }
 
@@ -32,6 +36,7 @@ public class FlaskProxyService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Key", flaskInternalKey);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -56,6 +61,7 @@ public class FlaskProxyService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set("X-Internal-Key", flaskInternalKey);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         try {

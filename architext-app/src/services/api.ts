@@ -13,6 +13,7 @@ export interface Plan {
   title: string;
   template: string;
   rooms: Room[];
+  adjacencies: [string, string][];
   svg: string;
   explanation: string[];
   canvas: { w: number; h: number };
@@ -24,11 +25,11 @@ export interface GenerateResponse {
   error?: string;
 }
 
-const BASE_URL = "http://172.20.10.2:8080";
+const DEFAULT_BASE = "https://architext-backend-3hdd.onrender.com";
 
 async function getApiBase(): Promise<string> {
   const stored = await AsyncStorage.getItem("architext_api");
-  return stored || BASE_URL;
+  return stored || DEFAULT_BASE;
 }
 
 async function authHeaders(): Promise<HeadersInit> {
