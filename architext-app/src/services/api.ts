@@ -25,7 +25,7 @@ export interface GenerateResponse {
   error?: string;
 }
 
-const DEFAULT_BASE = "http://172.20.10.2:8080";
+const DEFAULT_BASE = "https://architext-backend-3hdd.onrender.com";
 
 async function getApiBase(): Promise<string> {
   const stored = await AsyncStorage.getItem("architext_api");
