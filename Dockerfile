@@ -22,4 +22,4 @@ EXPOSE 5000
 
 # PORT defaults to 5000 for local docker runs; Render will inject its own
 # PORT env var for the private service, which this picks up automatically.
-CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --timeout 120 app:app
+CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120 app:app
