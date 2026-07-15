@@ -44,17 +44,19 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public routes
-                .requestMatchers(
-                    "/api/auth/signup",
-                    "/api/auth/login",
-                    "/api/layout/generate",
-                    "/api/layout/templates",
-                    "/api/parse/input"
-                ).permitAll()
-                // Everything else requires auth
-                .anyRequest().authenticated()
-            )
+    // Public routes
+    .requestMatchers(
+        "/api/auth/signup",
+        "/api/auth/login",
+        "/api/layout/generate",
+        "/api/layout/templates",
+        "/api/parse/input",
+        "/actuator/health"
+    ).permitAll()
+    // Everything else requires auth
+    .anyRequest().authenticated()
+)
+            
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
