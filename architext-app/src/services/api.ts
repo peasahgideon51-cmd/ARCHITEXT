@@ -39,15 +39,22 @@ async function authHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
+// TEMPORARY DEMO-DAY WORKAROUND — bypasses Spring Boot for this call only,
+// due to an unresolved 502/empty-response issue on the hosted backend.
+// Revert to the Spring Boot proxy version after the defense once root-caused.
+const FLASK_DIRECT_BASE = "https://architext-flask.onrender.com";
+const FLASK_INTERNAL_KEY = "9d9WbMSsvkj5aPDSdxNfC7xgQDtp+mLhr8JmsWJGX/g=";
+
 export async function generateLayout(
   text: string,
   units = "imperial",
 ): Promise<GenerateResponse> {
-  const base = await getApiBase();
-  const headers = await authHeaders();
-  const res = await fetch(`${base}/api/layout/generate`, {
+  const res = await fetch(`${FLASK_DIRECT_BASE}/api/layout/generate`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Internal-Key": FLASK_INTERNAL_KEY,
+    },
     body: JSON.stringify({ text, units }),
   });
   return res.json();
