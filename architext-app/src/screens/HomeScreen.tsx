@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import * as MediaLibrary from "expo-media-library";
+import { SvgXml } from "react-native-svg";
 import {
   View,
   Text,
@@ -34,6 +36,26 @@ interface ManualRoom {
   h: string;
 }
 
+// SvgXml's type declarations in this react-native-svg version don't
+// include `ref` as a valid prop, even though the component forwards it
+// at runtime (which is what makes toDataURL() reachable via the ref).
+// Casting to `any` here sidesteps the incomplete typing without
+// affecting actual behavior.
+const SvgXmlAny: any = SvgXml;
+
+// renderer.py's SVG viewBox is "0 0 W H" where W/H already include the
+// dimension-line margin, title block, and scale bar — NOT the same as
+// plan.canvas.w/h (which reflects the pre-margin layout canvas). Parsing
+// the viewBox directly is the only reliable way to get the true export
+// size, so the rasterized PNG isn't cropped.
+function parseSvgSize(svg: string): { w: number; h: number } {
+  const match = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  if (match) {
+    return { w: parseFloat(match[1]), h: parseFloat(match[2]) };
+  }
+  return { w: 800, h: 600 };
+}
+
 export function HomeScreen() {
   const { theme, isDark } = useTheme();
   const { addToHistory } = useHistory();
@@ -47,10 +69,17 @@ export function HomeScreen() {
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [show3D, setShow3D] = useState(false);
   const [savedNow, setSavedNow] = useState(false);
+  const [savingImage, setSavingImage] = useState(false);
+  const [imageSavedNow, setImageSavedNow] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomW, setRoomW] = useState("");
   const [roomH, setRoomH] = useState("");
   const [manualRooms, setManualRooms] = useState<ManualRoom[]>([]);
+
+  // Hidden off-screen SvgXml used purely to rasterize the current plan's
+  // SVG to a PNG via its native toDataURL() — never shown to the user.
+  // The visible 2D canvas below stays a WebView (unchanged).
+  const svgExportRef = useRef<any>(null);
 
   // Load a history entry when navigated from History screen
   useEffect(() => {
@@ -114,6 +143,9 @@ export function HomeScreen() {
     runGenerate(newDesc);
   };
 
+  // Bookmarks the plan data (JSON) into the app's own "saved plans" list.
+  // Distinct from handleSaveImage below, which writes an actual PNG to
+  // the device's Photos.
   const handleSave = async () => {
     if (!plan) return;
     await savePlan(plan);
@@ -145,6 +177,49 @@ export function HomeScreen() {
     }
   };
 
+  // Rasterizes the current 2D plan to a real PNG and saves it to the
+  // device's Photos, via the hidden off-screen SvgXml below.
+  const handleSaveImage = async () => {
+    if (!plan?.svg || !svgExportRef.current) return;
+    setSavingImage(true);
+    try {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          "Permission needed",
+          "Allow photo library access to save the floor plan image.",
+        );
+        setSavingImage(false);
+        return;
+      }
+
+      svgExportRef.current.toDataURL(async (base64: string) => {
+        try {
+          const fileName = `${(plan.title || "floorplan").replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.png`;
+          const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+          await FileSystem.writeAsStringAsync(fileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          await MediaLibrary.saveToLibraryAsync(fileUri);
+          setImageSavedNow(true);
+          setTimeout(() => setImageSavedNow(false), 2000);
+        } catch (innerErr) {
+          console.error("Save image write error", innerErr);
+          Alert.alert(
+            "Save Image",
+            "Could not save the floor plan as an image.",
+          );
+        } finally {
+          setSavingImage(false);
+        }
+      });
+    } catch (err) {
+      console.error("Save image error", err);
+      Alert.alert("Save Image", "Could not save the floor plan as an image.");
+      setSavingImage(false);
+    }
+  };
+
   const handle3DToggle = () => {
     if (!plan || plan.rooms.length === 0) return;
     setShow3D(true);
@@ -153,6 +228,11 @@ export function HomeScreen() {
   const svgHtml = plan?.svg
     ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fdfaf7}svg{width:100%;height:auto}</style></head><body>${plan.svg}</body></html>`
     : null;
+
+  const svgExportSize = useMemo(
+    () => (plan?.svg ? parseSvgSize(plan.svg) : { w: 800, h: 600 }),
+    [plan?.svg],
+  );
 
   const expBg = isDark ? "#1a1209" : "#2d1f14";
   const expText = "rgba(255,255,255,0.75)";
@@ -340,6 +420,31 @@ export function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  onPress={handleSaveImage}
+                  disabled={savingImage}
+                  style={[styles.iconBtn, { borderColor: theme.border }]}
+                >
+                  {savingImage ? (
+                    <ActivityIndicator size="small" color={theme.mid} />
+                  ) : (
+                    <Ionicons
+                      name={
+                        imageSavedNow ? "checkmark-circle" : "image-outline"
+                      }
+                      size={14}
+                      color={imageSavedNow ? theme.brown : theme.mid}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.iconBtnText,
+                      { color: imageSavedNow ? theme.brown : theme.mid },
+                    ]}
+                  >
+                    {imageSavedNow ? "Saved!" : "Save Image"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={handleSave}
                   style={[styles.iconBtn, { borderColor: theme.border }]}
                 >
@@ -354,7 +459,7 @@ export function HomeScreen() {
                       { color: savedNow ? theme.brown : theme.mid },
                     ]}
                   >
-                    {savedNow ? "Saved!" : "Save"}
+                    {savedNow ? "Saved!" : "Bookmark"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -498,6 +603,21 @@ export function HomeScreen() {
         ) : null}
       </ScrollView>
 
+      {/* Hidden off-screen SVG used only to rasterize the current plan to
+          a PNG via toDataURL(). Rendered (not display:none) so the native
+          rasterizer has something to draw, but positioned far off-screen
+          so it's never visible to the user. */}
+      {plan?.svg && (
+        <View style={styles.hiddenExport} pointerEvents="none">
+          <SvgXmlAny
+            xml={plan.svg}
+            width={svgExportSize.w}
+            height={svgExportSize.h}
+            ref={svgExportRef}
+          />
+        </View>
+      )}
+
       {/* 3D Full-screen Modal */}
       {plan && (
         <FloorPlan3DModal
@@ -595,7 +715,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   outputSub: { fontSize: 12, fontWeight: "300", marginTop: 2 },
-  actionBtns: { flexDirection: "row", gap: 6 },
+  actionBtns: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   iconBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -657,4 +777,10 @@ const styles = StyleSheet.create({
   },
   logDot: { width: 5, height: 5, borderRadius: 3, marginTop: 7, flexShrink: 0 },
   logText: { flex: 1, fontSize: 12, fontWeight: "300", lineHeight: 18 },
+  hiddenExport: {
+    position: "absolute",
+    top: -100000,
+    left: -100000,
+    opacity: 0,
+  },
 });
