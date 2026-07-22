@@ -1,21 +1,76 @@
 # Architext
 
-> _Describe a space. See a floor plan._
+AI-powered architectural floor plan generator. Describe a space in natural language and Architext generates a floor plan, rendered as SVG with both 2D and 3D visualization.
 
-Architext is an AI-powered architectural floor plan generator. Users provide natural language descriptions of spaces and receive to-scale SVG floor plans rendered in 2D, with an interactive 3D isometric view in progress.
+Built as a school group project (team of five), with the system design, backend, ML/layout service, deployment, and mobile app owned end-to-end by the lead developer.
 
 ---
 
-## Tech Stack
+## Overview
 
-| Layer           | Technology                                               |
-| --------------- | -------------------------------------------------------- |
-| Mobile Frontend | React Native + Expo SDK 54 + TypeScript                  |
-| Backend / Auth  | Spring Boot 3.3 (Java 21) + JWT + PostgreSQL             |
-| Layout Engine   | Python / Flask (NLP parser, layout engine, SVG renderer) |
-| Database        | PostgreSQL 18                                            |
-| Navigation      | React Navigation v7 — Stack navigator                    |
-| Storage         | AsyncStorage (local), PostgreSQL (user accounts)         |
+Architext takes a natural language description of a space (e.g. *"a 3-bedroom apartment with an open kitchen and a balcony off the living room"*) and produces:
+
+- A generated floor plan layout
+- An SVG rendering of the plan
+- 2D and 3D visualization in the mobile app
+- Saveable plan history per user, behind authentication
+
+---
+
+## Architecture
+
+Architext is split into three services plus a database:
+
+| Service | Role | Stack |
+|---|---|---|
+| **Mobile app** | UI, 2D/3D rendering, auth flows | React Native / Expo SDK 54, TypeScript |
+| **Backend (`architext-backend`)** | Auth (JWT), user history, saved plans, API proxying | Spring Boot, Java 21 |
+| **Layout service (`architext-flask` / ML service)** | NLP parsing, layout generation, SVG rendering | Python, Flask |
+| **Database** | Persistent storage | PostgreSQL |
+
+### Request flow
+
+- **Auth, history, saved plans** → Mobile app → Spring Boot → PostgreSQL
+- **Layout generation** → Mobile app → Flask directly (see note below)
+
+> **Note on the layout generation path:** Ideally, all requests route through Spring Boot, which proxies to Flask over a private network. Render's free tier doesn't support private networking between services, so Flask is exposed as a public service and secured with a shared-secret `X-Internal-Key` header. Separately, there's an unresolved issue where Spring Boot's outbound `RestTemplate` call to Flask fails silently in production (suspected OOM on the 512MB container — mitigated with `JAVA_TOOL_OPTIONS=-Xmx350m`, but not fully root-caused). As a workaround, the mobile app calls the Flask layout endpoint directly using the `X-Internal-Key` header, bypassing the Spring Boot proxy for that one flow only. This is flagged for follow-up — see [Known Issues](#known-issues--roadmap).
+
+---
+
+## Live Deployment
+
+| Service | URL |
+|---|---|
+| Backend (Spring Boot) | `https://architext-backend-3hdd.onrender.com` |
+| Layout service (Flask) | `https://architext-flask.onrender.com` |
+
+Both are hosted on Render's free tier and monitored by UptimeRobot (pinging `/actuator/health` and `/health` every 10 minutes) to mitigate cold starts.
+
+**Cold start note:** Render free tier spins down services after 15 minutes of inactivity. Spring Boot in particular has a slow cold start (~118s) due to JVM startup on a 512MB container.
+
+---
+
+## Tech Stack Details
+
+**Frontend**
+- React Native / Expo SDK 54, TypeScript
+- `react-native-svg` for SVG rendering and rasterization
+- Three.js (r128, WebView-embedded) for 3D visualization
+- `expo-file-system/legacy`, `expo-sharing`, `expo-media-library` for export/save-to-photos flows
+
+**Backend**
+- Spring Boot, Java 21
+- Lombok (`@Getter`, etc.) — configured with `optional=true` in `pom.xml`, excluded from the final jar via the Spring Boot Maven plugin
+- JWT-based authentication
+- `spring-dotenv` (`me.paulschwarz`, v4.0.0) for `.env` loading
+
+**Layout / ML service**
+- Python, Flask
+- NLP parsing of natural language descriptions into structured layout requests
+- SVG rendering with a fixed grid system (16px padding between cells — adjacency logic uses grid-slot comparison rather than pixel distance)
+
+**Database**
+- PostgreSQL (hosted on Render)
 
 ---
 
@@ -23,166 +78,83 @@ Architext is an AI-powered architectural floor plan generator. Users provide nat
 
 ```
 ARCHITEXT/
-├── architext-app/              ← React Native frontend (Expo SDK 54)
-│   ├── App.tsx                 ← Root: fonts, providers, splash, auth gate
-│   ├── index.ts                ← Entry point
-│   ├── src/
-│   │   ├── constants/          ← Design tokens, room colours, example prompts
-│   │   ├── context/            ← ThemeContext (dark mode), AuthContext (JWT)
-│   │   ├── services/           ← API calls (all traffic → Spring Boot)
-│   │   ├── hooks/              ← useHistory, useSaved (AsyncStorage)
-│   │   ├── navigation/         ← Stack navigator
-│   │   ├── components/         ← Card, Button, Input, DrawerContent
-│   │   └── screens/            ← Splash, Login, SignUp, Home, History, Saved, Settings
-│
-├── architext-backend/          ← Spring Boot backend (port 8080)
-│   └── src/main/java/com/architext/
-│       ├── controller/         ← AuthController, LayoutController, ParseController
-│       ├── service/            ← AuthService, FlaskProxyService
-│       ├── security/           ← JwtUtils, JwtAuthFilter, UserDetailsServiceImpl
-│       ├── model/              ← User (JPA entity → PostgreSQL)
-│       ├── repository/         ← UserRepository
-│       ├── dto/                ← SignupRequest, LoginRequest, AuthResponse, ApiResponse
-│       └── config/             ← SecurityConfig, GlobalExceptionHandler
-│
-├── parser/                     ← Dev 4: NLP parser
-├── layout/                     ← Dev 4: Layout engine
-├── explanation/                ← Dev 4: Explanation generator
-├── renderer/                   ← Dev 5: SVG renderer
-├── static/                     ← Legacy web frontend (index.html)
-├── app.py                      ← Flask server (layout engine, port 5000)
-├── requirements.txt
-├── .gitignore
-├── README.md
-└── CONTRIBUTING.md
+├── architext-app/        # React Native / Expo mobile app
+├── architext-backend/    # Spring Boot backend (auth, history, proxying)
+│   └── .env              # not committed — see Environment Variables
+└── architext-flask/      # Flask layout/ML service (adjust to actual folder name)
 ```
 
 ---
 
-## Architecture
+## Getting Started (Local Development)
 
-```
-React Native (Expo Go)
-        │
-        │  All requests → port 8080
-        ▼
-┌─────────────────────────┐
-│   Spring Boot (8080)    │
-│  • JWT auth             │
-│  • User management      │
-│  • PostgreSQL           │
-│  • Proxy → Flask        │
-└────────────┬────────────┘
-             │ Internal only
-             ▼
-┌─────────────────────────┐
-│   Flask engine (5000)   │
-│  • NLP parser           │
-│  • Layout engine        │
-│  • SVG renderer         │
-│  • Explanation module   │
-└─────────────────────────┘
-```
-
-The React Native client **never** talks to Flask directly. Spring Boot proxies all layout and parse requests internally.
-
----
-
-## Team Roles
-
-| Dev | Area                    | Folders / Files                                                         |
-| --- | ----------------------- | ----------------------------------------------------------------------- |
-| 1   | Frontend (React Native) | `architext-app/src/screens/`, `architext-app/src/navigation/`           |
-| 2   | UI/UX & Design          | `architext-app/src/components/`, `architext-app/src/constants/theme.ts` |
-| 3   | Backend / API           | `architext-backend/`, `app.py`                                          |
-| 4   | AI & Floor Plan Engine  | `parser/`, `layout/`, `explanation/`                                    |
-| 5   | Visualization & Export  | `renderer/`, 3D view (in progress)                                      |
-
----
-
-## Getting Started
+> These are the general steps based on the current architecture — confirm exact scripts/commands against your local `package.json` and `pom.xml` before publishing.
 
 ### Prerequisites
+- Node.js + npm/yarn
+- Java 21 + Maven
+- Python 3.x + pip
+- PostgreSQL (local instance or connection to a hosted instance)
+- Expo CLI / Expo Go app for mobile testing
 
-- Node.js 18+
-- Python 3.11+
-- Java 21+
-- Maven 3.9+
-- PostgreSQL 18
-- Expo Go (on your phone)
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/peasahgideon51-cmd/ARCHITEXT.git
-cd ARCHITEXT
-git checkout dev
-```
-
-### 2. Create your feature branch
-
-```bash
-git checkout -b feature/your-area-description
-```
-
-### 3. Install Python dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Set up PostgreSQL
-
-```sql
-CREATE DATABASE architext;
-```
-
-Update the password in `architext-backend/src/main/resources/application.properties`:
-
-```properties
-spring.datasource.password=YOUR_PASSWORD
-```
-
-### 5. Start all three servers
-
-**Terminal 1 — Flask engine:**
-
-```bash
-python app.py
-```
-
-**Terminal 2 — Spring Boot:**
-
+### Backend (Spring Boot)
 ```bash
 cd architext-backend
+# create a .env file with required variables (see below)
 mvn spring-boot:run
 ```
 
-**Terminal 3 — Expo (React Native):**
+### Layout service (Flask)
+```bash
+cd architext-flask
+pip install -r requirements.txt
+python app.py
+```
 
+### Mobile app (Expo)
 ```bash
 cd architext-app
+npm install
 npx expo start
 ```
 
-Scan the QR code with **Expo Go** on your phone.
+---
 
-### 6. Update the backend URL
+## Environment Variables
 
-In `architext-app/src/context/AuthContext.tsx` and `architext-app/src/services/api.ts`, set `BASE_URL` / `DEFAULT_BASE` to your machine's local IP address on port 8080:
+Backend `.env` (loaded via `spring-dotenv`, not committed to git):
 
-```typescript
-const BASE_URL = "http://YOUR_LOCAL_IP:8080";
+```
+DB_URL=****
+DB_USERNAME=****
+DB_PASSWORD=****
+JWT_SECRET=****
+ARCHITEXT_INTERNAL_KEY=****
 ```
 
-Find your IP with `ipconfig` (Windows) or `ifconfig` (Mac/Linux).
+Flask service expects the matching `X-Internal-Key` value to authenticate requests from the backend/mobile app.
+
+---
+
+## Known Issues & Roadmap
+
+Deferred post-defense, tracked for future work:
+
+- [ ] Root-cause the Spring Boot → Flask proxy failure (confirm OOM vs. other cause; consider a paid Render tier or JVM tuning) and remove the direct-to-Flask workaround
+- [ ] Tighten CORS — currently `setAllowedOriginPatterns(List.of("*"))` in `SecurityConfig.java`; remove the dead, unwired `architext.cors.allowed-origins` property or wire it in properly
+- [ ] Set up CI/CD via GitHub Actions
+- [ ] Replace `ddl-auto=update` with Flyway migrations
+- [ ] Confirm EAS Android APK build and test install
+- [ ] Apple Developer Program enrollment (Individual) for iOS distribution
+- [ ] Full API and deployment documentation
+- [ ] Remove/isolate Flask's legacy `flask_login` / SQLite auth remnants (Spring Boot JWT is the sole auth boundary in production)
+- [ ] Docker Compose setup for local multi-service development
+- [ ] CONTRIBUTING.md
 
 ---
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, commit message style, and how to submit pull requests.
+This project uses `main` and `dev` branches with branch protection requiring pull requests. Open a PR against `dev` for review.
 
 ---
-
-_For questions, reach out to the project lead._
