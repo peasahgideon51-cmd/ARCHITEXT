@@ -27,11 +27,6 @@ export interface GenerateResponse {
 
 const DEFAULT_BASE = "https://architext-backend-3hdd.onrender.com";
 
-async function getApiBase(): Promise<string> {
-  const stored = await AsyncStorage.getItem("architext_api");
-  return stored || DEFAULT_BASE;
-}
-
 async function authHeaders(): Promise<HeadersInit> {
   const token = await AsyncStorage.getItem("architext_token");
   const headers: HeadersInit = { "Content-Type": "application/json" };
