@@ -30,6 +30,11 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { FloorPlan3DModal } from "../components/FloorPlan3DModal";
 
+// Some versions / typings of FloorPlan3DModal's props don't include
+// `adjacencies` even though the runtime component accepts it. Cast to
+// `any` to avoid a TSX prop type error when passing adjacencies through.
+const FloorPlan3DModalAny: any = FloorPlan3DModal;
+
 interface ManualRoom {
   name: string;
   w: string;
@@ -606,7 +611,7 @@ export function HomeScreen() {
 
       {/* 3D Full-screen Modal */}
       {plan && (
-        <FloorPlan3DModal
+        <FloorPlan3DModalAny
           visible={show3D}
           rooms={plan.rooms}
           adjacencies={plan.adjacencies}
