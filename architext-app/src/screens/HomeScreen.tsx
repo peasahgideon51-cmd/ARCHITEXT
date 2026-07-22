@@ -69,8 +69,8 @@ export function HomeScreen() {
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [show3D, setShow3D] = useState(false);
   const [savedNow, setSavedNow] = useState(false);
-  const [savingImage, setSavingImage] = useState(false);
-  const [imageSavedNow, setImageSavedNow] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportedNow, setExportedNow] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomW, setRoomW] = useState("");
   const [roomH, setRoomH] = useState("");
@@ -153,35 +153,22 @@ export function HomeScreen() {
     setTimeout(() => setSavedNow(false), 2000);
   };
 
+  // Rasterizes the plan to PNG, saves it to Photos, then opens the share
+  // sheet for the same file — combines the old SVG-share Export with the
+  // Save Image button so there's one action instead of two.
   const handleExport = async () => {
     if (!plan?.svg) return;
-    try {
-      const fileName = `${(plan.title || "floorplan").replace(/[^a-z0-9]/gi, "_")}.svg`;
-      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(fileUri, plan.svg, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) {
-        Alert.alert("Export", "Sharing is not available on this device.");
-        return;
-      }
-      await Sharing.shareAsync(fileUri, {
-        mimeType: "image/svg+xml",
-        dialogTitle: `${plan.title} — Floor Plan`,
-        UTI: "public.svg-image",
-      });
-    } catch (err) {
-      console.error("Export error", err);
-      Alert.alert("Export", "Could not export the floor plan.");
+    if (
+      !svgExportRef.current ||
+      typeof svgExportRef.current.toDataURL !== "function"
+    ) {
+      // Surfaces a real problem instead of the button silently doing
+      // nothing — e.g. if this react-native-svg version doesn't forward
+      // ref on SvgXml the way older versions did.
+      Alert.alert("Export", "Image export isn't available on this build.");
+      return;
     }
-  };
-
-  // Rasterizes the current 2D plan to a real PNG and saves it to the
-  // device's Photos, via the hidden off-screen SvgXml below.
-  const handleSaveImage = async () => {
-    if (!plan?.svg || !svgExportRef.current) return;
-    setSavingImage(true);
+    setExporting(true);
     try {
       const perm = await MediaLibrary.requestPermissionsAsync();
       if (!perm.granted) {
@@ -189,7 +176,7 @@ export function HomeScreen() {
           "Permission needed",
           "Allow photo library access to save the floor plan image.",
         );
-        setSavingImage(false);
+        setExporting(false);
         return;
       }
 
@@ -200,23 +187,33 @@ export function HomeScreen() {
           await FileSystem.writeAsStringAsync(fileUri, base64, {
             encoding: FileSystem.EncodingType.Base64,
           });
+
+          // Save to Photos first — this is the already-proven part.
           await MediaLibrary.saveToLibraryAsync(fileUri);
-          setImageSavedNow(true);
-          setTimeout(() => setImageSavedNow(false), 2000);
+          setExportedNow(true);
+          setTimeout(() => setExportedNow(false), 2000);
+
+          // Then offer the share sheet for the same image, preserving the
+          // original Export button's "send this elsewhere" capability.
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: "image/png",
+              dialogTitle: `${plan.title} — Floor Plan`,
+              UTI: "public.png",
+            });
+          }
         } catch (innerErr) {
-          console.error("Save image write error", innerErr);
-          Alert.alert(
-            "Save Image",
-            "Could not save the floor plan as an image.",
-          );
+          console.error("Export image error", innerErr);
+          Alert.alert("Export", "Could not export the floor plan image.");
         } finally {
-          setSavingImage(false);
+          setExporting(false);
         }
       });
     } catch (err) {
-      console.error("Save image error", err);
-      Alert.alert("Save Image", "Could not save the floor plan as an image.");
-      setSavingImage(false);
+      console.error("Export error", err);
+      Alert.alert("Export", "Could not export the floor plan.");
+      setExporting(false);
     }
   };
 
@@ -412,36 +409,25 @@ export function HomeScreen() {
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   onPress={handleExport}
+                  disabled={exporting}
                   style={[styles.iconBtn, { borderColor: theme.border }]}
                 >
-                  <Ionicons name="share-outline" size={14} color={theme.mid} />
-                  <Text style={[styles.iconBtnText, { color: theme.mid }]}>
-                    Export
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSaveImage}
-                  disabled={savingImage}
-                  style={[styles.iconBtn, { borderColor: theme.border }]}
-                >
-                  {savingImage ? (
+                  {exporting ? (
                     <ActivityIndicator size="small" color={theme.mid} />
                   ) : (
                     <Ionicons
-                      name={
-                        imageSavedNow ? "checkmark-circle" : "image-outline"
-                      }
+                      name={exportedNow ? "checkmark-circle" : "image-outline"}
                       size={14}
-                      color={imageSavedNow ? theme.brown : theme.mid}
+                      color={exportedNow ? theme.brown : theme.mid}
                     />
                   )}
                   <Text
                     style={[
                       styles.iconBtnText,
-                      { color: imageSavedNow ? theme.brown : theme.mid },
+                      { color: exportedNow ? theme.brown : theme.mid },
                     ]}
                   >
-                    {imageSavedNow ? "Saved!" : "Save Image"}
+                    {exportedNow ? "Exported!" : "Export"}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
