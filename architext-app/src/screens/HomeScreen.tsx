@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library";
+import * as Print from "expo-print";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SvgXml } from "react-native-svg";
 import {
   View,
@@ -17,6 +19,7 @@ import {
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 import { useHistory, useSaved } from "../hooks/useStore";
 import { generateLayout, Plan } from "../services/api";
@@ -61,11 +64,26 @@ function parseSvgSize(svg: string): { w: number; h: number } {
   return { w: 800, h: 600 };
 }
 
+// Matches the exact strings SettingsScreen writes to
+// AsyncStorage["architext_fmt"] (see FORMATS in SettingsScreen.tsx).
+// Read fresh at export time rather than cached in state, since Settings
+// and Home are separate screens with no shared context — this guarantees
+// Home always sees whatever the user last picked, even mid-session.
+type ExportFormat = "PNG Image" | "PDF Document" | "SVG Vector";
+
+function safeFileBase(title: string | undefined): string {
+  return `${(title || "floorplan").replace(/[^a-z0-9]/gi, "_")}_${Date.now()}`;
+}
+
 export function HomeScreen() {
   const { theme, isDark } = useTheme();
   const { addToHistory } = useHistory();
   const { savePlan } = useSaved();
   const route = useRoute<any>();
+  // Home is rendered inside the stack navigator, so the header already
+  // covers the top inset (notch / Dynamic Island). We only need the
+  // bottom inset here, for the home indicator / gesture bar.
+  const insets = useSafeAreaInsets();
 
   const [description, setDescription] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -149,8 +167,8 @@ export function HomeScreen() {
   };
 
   // Bookmarks the plan data (JSON) into the app's own "saved plans" list.
-  // Distinct from handleSaveImage below, which writes an actual PNG to
-  // the device's Photos.
+  // Distinct from the export handlers below, which write an actual
+  // PNG/SVG/PDF file for the user to keep or share externally.
   const handleSave = async () => {
     if (!plan) return;
     await savePlan(plan);
@@ -158,66 +176,132 @@ export function HomeScreen() {
     setTimeout(() => setSavedNow(false), 2000);
   };
 
-  // Rasterizes the plan to PNG, saves it to Photos, then opens the share
-  // sheet for the same file — combines the old SVG-share Export with the
-  // Save Image button so there's one action instead of two.
-  const handleExport = async () => {
-    if (!plan?.svg) return;
-    if (
-      !svgExportRef.current ||
-      typeof svgExportRef.current.toDataURL !== "function"
-    ) {
-      // Surfaces a real problem instead of the button silently doing
-      // nothing — e.g. if this react-native-svg version doesn't forward
-      // ref on SvgXml the way older versions did.
-      Alert.alert("Export", "Image export isn't available on this build.");
-      return;
-    }
-    setExporting(true);
-    try {
-      const perm = await MediaLibrary.requestPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(
-          "Permission needed",
-          "Allow photo library access to save the floor plan image.",
-        );
-        setExporting(false);
+  // Wraps SvgXml's callback-based toDataURL() in a Promise so it composes
+  // cleanly with the async export handlers below.
+  const rasterizeToPngBase64 = (): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (
+        !svgExportRef.current ||
+        typeof svgExportRef.current.toDataURL !== "function"
+      ) {
+        // Surfaces a real problem instead of the button silently doing
+        // nothing — e.g. if this react-native-svg version doesn't forward
+        // ref on SvgXml the way older versions did.
+        reject(new Error("Image export isn't available on this build."));
         return;
       }
+      svgExportRef.current.toDataURL((base64: string) => resolve(base64));
+    });
 
-      svgExportRef.current.toDataURL(async (base64: string) => {
-        try {
-          const fileName = `${(plan.title || "floorplan").replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.png`;
-          const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-          await FileSystem.writeAsStringAsync(fileUri, base64, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
+  // PNG: rasterize, save to Photos, then offer the share sheet for the
+  // same file. This is the original, already-proven path — unchanged.
+  const exportPng = async (currentPlan: Plan) => {
+    const perm = await MediaLibrary.requestPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        "Permission needed",
+        "Allow photo library access to save the floor plan image.",
+      );
+      return;
+    }
+    const base64 = await rasterizeToPngBase64();
+    const fileUri = `${FileSystem.cacheDirectory}${safeFileBase(currentPlan.title)}.png`;
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
 
-          // Save to Photos first — this is the already-proven part.
-          await MediaLibrary.saveToLibraryAsync(fileUri);
-          setExportedNow(true);
-          setTimeout(() => setExportedNow(false), 2000);
+    await MediaLibrary.saveToLibraryAsync(fileUri);
 
-          // Then offer the share sheet for the same image, preserving the
-          // original Export button's "send this elsewhere" capability.
-          const canShare = await Sharing.isAvailableAsync();
-          if (canShare) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: "image/png",
-              dialogTitle: `${plan.title} — Floor Plan`,
-              UTI: "public.png",
-            });
-          }
-        } catch (innerErr) {
-          console.error("Export image error", innerErr);
-          Alert.alert("Export", "Could not export the floor plan image.");
-        } finally {
-          setExporting(false);
-        }
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "image/png",
+        dialogTitle: `${currentPlan.title} — Floor Plan`,
+        UTI: "public.png",
       });
-    } catch (err) {
+    }
+  };
+
+  // SVG: write the raw vector markup straight to a file and share it.
+  // No MediaLibrary step here — SVG isn't a Photos-library asset type on
+  // iOS/Android, so forcing a "save to Photos" step for it would either
+  // silently fail or (as before this fix) get skipped entirely in favor
+  // of a PNG. Share/export-to-Files is the correct destination for a
+  // vector file.
+  const exportSvg = async (currentPlan: Plan) => {
+    const fileUri = `${FileSystem.cacheDirectory}${safeFileBase(currentPlan.title)}.svg`;
+    await FileSystem.writeAsStringAsync(fileUri, currentPlan.svg, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "image/svg+xml",
+        dialogTitle: `${currentPlan.title} — Floor Plan (SVG)`,
+        UTI: "public.svg-image",
+      });
+    } else {
+      Alert.alert("Export", "Sharing isn't available on this device.");
+    }
+  };
+
+  // PDF: render the same HTML already used for the 2D WebView preview to
+  // a genuine PDF via expo-print, then share it. This produces a real
+  // vector-quality PDF, not an image with a .pdf extension.
+  // Known limitation: page sizing/margins use expo-print's defaults
+  // rather than being matched to the plan's aspect ratio, so very wide or
+  // tall plans may have extra white space on the page. Follow-up, not a
+  // blocker — the format itself is now correct.
+  const exportPdf = async (currentPlan: Plan, html: string) => {
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    const fileUri = `${FileSystem.cacheDirectory}${safeFileBase(currentPlan.title)}.pdf`;
+    // printToFileAsync writes to its own generated cache path — copy to a
+    // plan-titled filename so the share sheet shows something meaningful
+    // instead of a random UUID.
+    await FileSystem.copyAsync({ from: uri, to: fileUri });
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "application/pdf",
+        dialogTitle: `${currentPlan.title} — Floor Plan (PDF)`,
+        UTI: "com.adobe.pdf",
+      });
+    } else {
+      Alert.alert("Export", "Sharing isn't available on this device.");
+    }
+  };
+
+  // Reads the user's default export format from Settings (written by
+  // SettingsScreen.tsx to AsyncStorage["architext_fmt"]) and routes to
+  // the matching export path. Read fresh here rather than cached in
+  // state, so a format change in Settings takes effect immediately on
+  // the next export without needing a shared context between screens.
+  const handleExport = async () => {
+    if (!plan?.svg) return;
+    setExporting(true);
+    try {
+      const fmt =
+        ((await AsyncStorage.getItem(
+          "architext_fmt",
+        )) as ExportFormat | null) || "PNG Image";
+
+      if (fmt === "SVG Vector") {
+        await exportSvg(plan);
+      } else if (fmt === "PDF Document") {
+        if (!svgHtml) throw new Error("No plan to export.");
+        await exportPdf(plan, svgHtml);
+      } else {
+        await exportPng(plan);
+      }
+
+      setExportedNow(true);
+      setTimeout(() => setExportedNow(false), 2000);
+    } catch (err: any) {
       console.error("Export error", err);
-      Alert.alert("Export", "Could not export the floor plan.");
+      Alert.alert("Export", err?.message || "Could not export the floor plan.");
+    } finally {
       setExporting(false);
     }
   };
@@ -245,7 +329,10 @@ export function HomeScreen() {
     <>
       <ScrollView
         style={[styles.root, { backgroundColor: theme.pageBg }]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 40 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.eyebrowRow}>
