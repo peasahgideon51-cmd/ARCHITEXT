@@ -1,11 +1,12 @@
 """
 layout_engine.py — Architext rule-based layout engine
 
-Selects a base grid template from the library and assigns parsed rooms to
-grid slots, enforcing spatial adjacency and grouping constraints.
+Sizes a grid to the actual parsed room count and assigns rooms to grid
+slots, enforcing spatial adjacency and grouping constraints.
 """
 
 from __future__ import annotations
+import math
 from dataclasses import dataclass, field
 from typing import Optional
 from parser.parser import ParsedLayout, Room
@@ -28,7 +29,8 @@ class GridSlot:
 
 @dataclass
 class Template:
-    """A base layout template selected by bedroom count and building type."""
+    """A grid layout — either one of the legacy fixed presets below, or a
+    dynamically-sized one built by generate_dynamic_template()."""
     template_id: str
     name: str
     cols: int
@@ -62,13 +64,28 @@ class GeneratedLayout:
 
 
 # ---------------------------------------------------------------------------
-# Template library
+# Grid cell dimensions (pixels)
 # ---------------------------------------------------------------------------
 
-# Grid cell dimensions (pixels)
 CELL_W = 160
 CELL_H = 120
 PADDING = 16   # gap between cells
+
+
+# ---------------------------------------------------------------------------
+# LEGACY: fixed template library
+# ---------------------------------------------------------------------------
+# No longer used by generate_layout() — replaced by generate_dynamic_template()
+# below, which sizes the grid to the actual room count instead of picking
+# from these 4 fixed presets. That fixed-size mismatch (presets routinely
+# had more slots than a typical request had rooms for) was the root cause
+# of generated layouts almost always having an unclaimed, empty-looking
+# slot in the middle of the plan.
+#
+# Left in place, unused, in case anything else in the project still
+# imports TEMPLATES/select_template, and as a reference if you want to
+# reintroduce these as named "style" presets layered on top of the
+# dynamic grid sizing later.
 
 def _make_slots(*specs: tuple) -> list[GridSlot]:
     """
@@ -158,6 +175,130 @@ TEMPLATES: list[Template] = [
 ]
 
 
+def select_template(layout: ParsedLayout) -> Template:
+    """LEGACY — unused by generate_layout(). See generate_dynamic_template()."""
+    n = len(layout.rooms)
+    btype = layout.building_type
+
+    candidates = [
+        t for t in TEMPLATES
+        if btype in t.suitable_for and t.min_rooms <= n <= t.max_rooms
+    ]
+
+    if not candidates:
+        candidates = sorted(
+            TEMPLATES,
+            key=lambda t: abs(n - (t.min_rooms + t.max_rooms) // 2)
+        )
+
+    return min(candidates, key=lambda t: abs(len(t.slots) - n))
+
+
+# ---------------------------------------------------------------------------
+# Dynamic grid sizing — replaces fixed template selection
+# ---------------------------------------------------------------------------
+
+def _pick_grid_dims(n: int) -> tuple[int, int]:
+    """
+    Choose (cols, rows) sized to the actual room count rather than picking
+    from a small set of fixed presets. Prefers a landscape-ish aspect
+    ratio (a touch wider than tall, like most real floor plans) and
+    minimizes leftover cells beyond n — any unavoidable remainder is
+    handled afterwards by _absorb_leftover_slots rather than left empty.
+    """
+    if n <= 0:
+        return 1, 1
+
+    TARGET_ASPECT = 1.4
+    MAX_ASPECT = 2.2   # widest cols:rows shape considered architecturally
+    MIN_ASPECT = 1.0 / MAX_ASPECT  # plausible — rules out e.g. an 11x1 strip
+
+    best = None
+    for rows in range(1, n + 1):
+        cols = math.ceil(n / rows)
+        aspect = cols / rows
+        if aspect > MAX_ASPECT or aspect < MIN_ASPECT:
+            # Outside a plausible floor-plan aspect ratio — skip even if
+            # it happens to have zero leftover cells. A single-row strip
+            # (e.g. 11x1 for a prime room count) minimizes leftover but
+            # also collapses every room onto the same row, which breaks
+            # the row-based public/service/private zoning entirely.
+            continue
+        leftover = cols * rows - n
+        aspect_penalty = abs(aspect - TARGET_ASPECT)
+        score = (leftover, aspect_penalty)
+        if best is None or score < best[0]:
+            best = (score, cols, rows)
+
+    if best is None:
+        # No candidate fell inside the aspect band — only possible for
+        # very small n. Fall back to the closest-to-square split.
+        rows = max(1, round(math.sqrt(n)))
+        cols = math.ceil(n / rows)
+        return cols, rows
+
+    return best[1], best[2]
+
+
+def _zone_band(row: int, rows: int) -> str:
+    """Public near the front (top), private toward the back (bottom),
+    service in between — same architectural logic the old fixed
+    templates encoded by hand, just computed for any grid size."""
+    row_frac = row / max(rows - 1, 1)
+    if row_frac < 1 / 3:
+        return "public"
+    if row_frac < 2 / 3:
+        return "service"
+    return "private"
+
+
+def generate_dynamic_template(layout: ParsedLayout) -> Template:
+    """
+    Sizes the grid to the actual parsed room count so there's no
+    structural surplus of slots for the assignment step to leave empty —
+    the direct fix for the layout engine reliably producing a void in the
+    middle of generated plans. (The PADDING/CELL gap between rooms was
+    never the cause — a genuinely unclaimed grid slot was.)
+    """
+    n = len(layout.rooms)
+    cols, rows = _pick_grid_dims(n)
+
+    outdoor_needed = sum(
+        1 for r in layout.rooms if r.room_type in ("garden", "garage")
+    )
+
+    # Perimeter cells, corners first — most architecturally plausible
+    # spots for outdoor-facing rooms.
+    perimeter: list[tuple[int, int]] = []
+    for r in range(rows):
+        for c in range(cols):
+            if r in (0, rows - 1) or c in (0, cols - 1):
+                perimeter.append((c, r))
+    perimeter.sort(
+        key=lambda cr: 0 if cr[0] in (0, cols - 1) and cr[1] in (0, rows - 1) else 1
+    )
+    outdoor_cells = set(perimeter[:outdoor_needed])
+
+    slots: list[GridSlot] = []
+    slot_num = 0
+    for r in range(rows):
+        for c in range(cols):
+            slot_num += 1
+            zone = "outdoor" if (c, r) in outdoor_cells else _zone_band(r, rows)
+            slots.append(GridSlot(f"d{slot_num}", c, r, 1, 1, zone))
+
+    return Template(
+        template_id="dynamic",
+        name=f"{n}-Room {layout.building_type.title()} Layout",
+        cols=cols,
+        rows=rows,
+        slots=slots,
+        suitable_for=[layout.building_type],
+        min_rooms=n,
+        max_rooms=n,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Spatial constraint rules
 # ---------------------------------------------------------------------------
@@ -193,7 +334,7 @@ ZONE_AFFINITY: dict[str, list[str]] = {
 }
 
 # ---------------------------------------------------------------------------
-# NEW: Architectural position preferences
+# Architectural position preferences
 # ---------------------------------------------------------------------------
 
 ROOM_POSITION_PREFERENCE: dict[str, list[str]] = {
@@ -207,33 +348,6 @@ ROOM_POSITION_PREFERENCE: dict[str, list[str]] = {
     "garden":      ["outdoor"],
 }
 
-# ---------------------------------------------------------------------------
-# Template selection
-# ---------------------------------------------------------------------------
-
-def select_template(layout: ParsedLayout) -> Template:
-    """Pick the best-fit template based on room count and building type."""
-
-    n = len(layout.rooms)
-    btype = layout.building_type
-
-    candidates = [
-        t for t in TEMPLATES
-        if btype in t.suitable_for and t.min_rooms <= n <= t.max_rooms
-    ]
-
-    if not candidates:
-        # Fall back to closest by room count
-        candidates = sorted(
-            TEMPLATES,
-            key=lambda t: abs(n - (t.min_rooms + t.max_rooms) // 2)
-        )
-
-    return min(candidates, key=lambda t: abs(len(t.slots) - n))
-
-# ---------------------------------------------------------------------------
-# Room → slot assignment
-# ---------------------------------------------------------------------------
 
 def _zone_affinity_score(room_type: str, slot: GridSlot) -> int:
     """
@@ -247,87 +361,77 @@ def _zone_affinity_score(room_type: str, slot: GridSlot) -> int:
 
     return 99
 
-# ---------------------------------------------------------------------------
-# NEW: Intelligent architectural placement scoring
-# ---------------------------------------------------------------------------
 
-def _position_score(room_type: str, slot: GridSlot) -> int:
+def _position_score(room_type: str, slot: GridSlot, cols: int, rows: int) -> int:
     """
     Lower score = better architectural positioning.
+
+    Uses fractional col/row position (col / cols, row / rows) rather than
+    hardcoded column/row indices. The grid is now sized per-request by
+    generate_dynamic_template() instead of coming from 4 fixed 3x3/4x3/4x4
+    presets, so literal index checks (e.g. "col in [1, 2]") would silently
+    stop meaning anything on a grid of a different shape — fractional
+    position is what actually generalizes.
     """
 
     score = 0
-
     preferred = ROOM_POSITION_PREFERENCE.get(room_type, [])
 
-    # Preferred zone bonus
     if slot.zone in preferred:
         score -= 20
+
+    col_frac = slot.col / max(cols - 1, 1)
+    row_frac = slot.row / max(rows - 1, 1)
 
     # ---------------------------------------------------------------
     # Living room prefers central/public positions
     # ---------------------------------------------------------------
-
     if room_type == "living_room":
-
-        if slot.col in [1, 2]:
+        if 0.2 <= col_frac <= 0.8:
             score -= 15
-
-        if slot.row == 0:
+        if row_frac < 0.4:
             score -= 5
 
     # ---------------------------------------------------------------
     # Dining room near public center
     # ---------------------------------------------------------------
-
     if room_type == "dining_room":
-
-        if slot.col in [1, 2]:
+        if 0.2 <= col_frac <= 0.8:
             score -= 10
 
     # ---------------------------------------------------------------
     # Bedrooms grouped lower/private
     # ---------------------------------------------------------------
-
     if room_type == "bedroom":
-
-        if slot.row >= 2:
+        if row_frac >= 0.6:
             score -= 15
 
     # ---------------------------------------------------------------
     # Bathrooms near bedrooms
     # ---------------------------------------------------------------
-
     if room_type == "bathroom":
-
-        if slot.row >= 1:
+        if row_frac >= 0.33:
             score -= 8
 
     # ---------------------------------------------------------------
     # Kitchen prefers service edge
     # ---------------------------------------------------------------
-
     if room_type == "kitchen":
-
-        if slot.col == 0:
+        if col_frac <= 0.25:
             score -= 12
 
     # ---------------------------------------------------------------
     # Garage/garden prefer perimeter
     # ---------------------------------------------------------------
-
-    if room_type in ["garage", "garden"]:
-
-        if slot.col == 0 or slot.col >= 3:
+    if room_type in ("garage", "garden"):
+        if col_frac <= 0.15 or col_frac >= 0.85:
             score -= 15
 
     # ---------------------------------------------------------------
     # Hallway near front entrance
     # ---------------------------------------------------------------
-
     if room_type == "hallway":
-
-        if slot.row == 0:
+        if row_frac < 0.25:
             score -= 12
 
     return score
@@ -424,7 +528,9 @@ def assign_rooms(layout: ParsedLayout, template: Template) -> list[AssignedRoom]
     required_pairs = _required_adjacency_pairs(sorted_rooms)
 
     def slot_score(room: Room, slot: GridSlot) -> int:
-        return _zone_affinity_score(room.room_type, slot) + _position_score(room.room_type, slot)
+        return _zone_affinity_score(room.room_type, slot) + _position_score(
+            room.room_type, slot, template.cols, template.rows
+        )
 
     # Best-first candidate slot order per room, computed once.
     candidate_orders = [
@@ -483,6 +589,57 @@ def assign_rooms(layout: ParsedLayout, template: Template) -> list[AssignedRoom]
     return assigned
 
 
+# ---------------------------------------------------------------------------
+# Leftover-slot absorption (safety net)
+# ---------------------------------------------------------------------------
+
+def _absorb_leftover_slots(
+    assigned: list[AssignedRoom], template: Template
+) -> list[AssignedRoom]:
+    """
+    Right-sizing the grid to the room count (generate_dynamic_template)
+    keeps this to at most a cell or two in practice — it can't always hit
+    exactly zero leftover (e.g. an awkward room count that doesn't factor
+    neatly into a landscape-ish grid). Rather than leave any unclaimed
+    slot as a true void in the rendered plan, grow the nearest adjacent
+    assigned room to cover it. Architecturally this reads as "the living
+    room is slightly larger here," a normal, plausible outcome — not a
+    rendering artifact.
+    """
+    used_ids = {ar.slot.slot_id for ar in assigned}
+    leftover = [s for s in template.slots if s.slot_id not in used_ids]
+    if not leftover:
+        return assigned
+
+    for empty_slot in leftover:
+        candidates = [
+            ar for ar in assigned if _slots_grid_adjacent(ar.slot, empty_slot)
+        ]
+        if not candidates:
+            continue
+        # Prefer absorbing into the living room / public-zone room first —
+        # a slightly larger living area is more architecturally natural
+        # than an oversized bathroom or bedroom.
+        candidates.sort(
+            key=lambda ar: (
+                ar.room.room_type != "living_room",
+                ar.slot.zone != "public",
+            )
+        )
+        target = candidates[0].slot
+
+        if empty_slot.col == target.col + target.col_span and empty_slot.row == target.row:
+            target.col_span += empty_slot.col_span
+        elif target.col == empty_slot.col + empty_slot.col_span and empty_slot.row == target.row:
+            target.col = empty_slot.col
+            target.col_span += empty_slot.col_span
+        elif empty_slot.row == target.row + target.row_span and empty_slot.col == target.col:
+            target.row_span += empty_slot.row_span
+        elif target.row == empty_slot.row + empty_slot.row_span and empty_slot.col == target.col:
+            target.row = empty_slot.row
+            target.row_span += empty_slot.row_span
+
+    return assigned
 
 
 # ---------------------------------------------------------------------------
@@ -611,10 +768,12 @@ def _collect_applied_rules(
 
 def generate_layout(layout: ParsedLayout) -> GeneratedLayout:
     """
-    Full pipeline: select template → assign rooms → compute coords → collect rules.
+    Full pipeline: size grid to room count → assign rooms → absorb any
+    leftover slot → compute coords → collect rules.
     """
-    template = select_template(layout)
+    template = generate_dynamic_template(layout)
     assigned = assign_rooms(layout, template)
+    assigned = _absorb_leftover_slots(assigned, template)
     assigned, canvas_w, canvas_h = _compute_pixel_coords(assigned, template.cols, template.rows)
     adjacency_pairs = _find_adjacency_pairs(assigned)
     applied_rules = _collect_applied_rules(assigned, layout, template, adjacency_pairs)
