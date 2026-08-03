@@ -3,7 +3,7 @@ export const THREE_VIEWER_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>Architext 3D</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,7 +13,7 @@ export const THREE_VIEWER_HTML = `<!DOCTYPE html>
   #ui {
     position: absolute; top: 0; left: 0; right: 0;
     display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 16px;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 14px calc(16px + env(safe-area-inset-left, 0px));
     background: linear-gradient(to bottom, rgba(245,240,232,0.95) 0%, transparent 100%);
     pointer-events: none;
   }
@@ -32,7 +32,7 @@ export const THREE_VIEWER_HTML = `<!DOCTYPE html>
   #close-btn:active { background: rgba(107,90,66,0.22); }
 
   #camera-btns {
-    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
     display: flex; gap: 8px;
   }
   .cam-btn {
@@ -67,7 +67,7 @@ export const THREE_VIEWER_HTML = `<!DOCTYPE html>
   @keyframes spin { to { transform: rotate(360deg); } }
 
   #mode-label {
-    position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(52px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
     font-family: 'Georgia', serif; font-size: 9px; letter-spacing: 2px;
     color: rgba(107,90,66,0.5); text-transform: uppercase; white-space: nowrap;
     pointer-events: none;
@@ -700,4 +700,3 @@ setTimeout(function() {
 </body>
 </html>
 `;
-
