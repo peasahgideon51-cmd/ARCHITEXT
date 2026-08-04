@@ -38,7 +38,7 @@ async function authHeaders(): Promise<HeadersInit> {
 // due to an unresolved 502/empty-response issue on the hosted backend.
 // Revert to the Spring Boot proxy version after the defense once root-caused.
 const FLASK_DIRECT_BASE = "https://architext-flask.onrender.com";
-const FLASK_INTERNAL_KEY = "9d9WbMSsvkj5aPDSdxNfC7xgQDtp+mLhr8JmsWJGX/g=";
+const FLASK_INTERNAL_KEY = "OzLDFWTyH6whIwE6F/DLbvnQYfUYozV8w52YEcGhjRQ=";
 
 export async function generateLayout(
   text: string,
