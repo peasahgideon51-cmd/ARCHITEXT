@@ -151,6 +151,8 @@ Deferred post-defense, tracked for future work:
 - [ ] Docker Compose setup for local multi-service development
 - [ ] CONTRIBUTING.md
 
+- [ ] Have a good time gping through the application.
+
 ---
 
 ## Contributing
