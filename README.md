@@ -14,6 +14,7 @@ Architext takes a natural language description of a space (e.g. *"a 3-bedroom ap
 - An SVG rendering of the plan
 - 2D and 3D visualization in the mobile app
 - Saveable plan history per user, behind authentication
+- Export to PNG, SVG, or PDF
 
 ---
 
@@ -33,7 +34,9 @@ Architext is split into three services plus a database:
 - **Auth, history, saved plans** → Mobile app → Spring Boot → PostgreSQL
 - **Layout generation** → Mobile app → Flask directly (see note below)
 
-> **Note on the layout generation path:** Ideally, all requests route through Spring Boot, which proxies to Flask over a private network. Render's free tier doesn't support private networking between services, so Flask is exposed as a public service and secured with a shared-secret `X-Internal-Key` header. Separately, there's an unresolved issue where Spring Boot's outbound `RestTemplate` call to Flask fails silently in production (suspected OOM on the 512MB container — mitigated with `JAVA_TOOL_OPTIONS=-Xmx350m`, but not fully root-caused). As a workaround, the mobile app calls the Flask layout endpoint directly using the `X-Internal-Key` header, bypassing the Spring Boot proxy for that one flow only. This is flagged for follow-up — see [Known Issues](#known-issues--roadmap).
+> **Note on the layout generation path:** Ideally, all requests route through Spring Boot, which proxies to Flask over a private network. Render's free tier doesn't support private networking between services, so Flask is exposed as a public service and secured with a shared-secret `X-Internal-Key` header. Separately, there's an unresolved issue where Spring Boot's outbound `RestTemplate` call to Flask fails silently in production (suspected OOM on the 512MB container — mitigated with `JAVA_TOOL_OPTIONS=-Xmx350m`, but not fully root-caused). As a workaround, the mobile app calls the Flask layout endpoint directly using the `X-Internal-Key` header, bypassing the Spring Boot proxy for that one flow only. This has been verified working reliably end-to-end on a real build/device. This is flagged for follow-up — see [Known Issues](#known-issues--roadmap).
+>
+> **Operational gotcha:** the `X-Internal-Key` value is currently hardcoded client-side in `api.ts` rather than read from env config. If this key is ever rotated on the Flask/Render side without also rebuilding and reinstalling the mobile app, every layout generation request will fail with an `Unauthorized` response — the app is still running against a stale key baked into the old build. This has already happened once during testing; see [Known Issues](#known-issues--roadmap) for the planned fix (move to env-based config).
 
 ---
 
@@ -48,6 +51,8 @@ Both are hosted on Render's free tier and monitored by UptimeRobot (pinging `/ac
 
 **Cold start note:** Render free tier spins down services after 15 minutes of inactivity. Spring Boot in particular has a slow cold start (~118s) due to JVM startup on a 512MB container.
 
+**Mobile build:** Android APK built via EAS Build (`preview` profile, internal distribution) — confirmed built, installed, and tested end-to-end on a physical device, including auth, layout generation, save/bookmark, and history flows.
+
 ---
 
 ## Tech Stack Details
@@ -57,6 +62,8 @@ Both are hosted on Render's free tier and monitored by UptimeRobot (pinging `/ac
 - `react-native-svg` for SVG rendering and rasterization
 - Three.js (r128, WebView-embedded) for 3D visualization
 - `expo-file-system/legacy`, `expo-sharing`, `expo-media-library` for export/save-to-photos flows
+- `expo-print` (pinned to `15.0.8`) for PDF export — confirmed working end-to-end
+- Export formats: PNG, SVG, and PDF, selectable in Settings
 
 **Backend**
 - Spring Boot, Java 21
@@ -67,7 +74,8 @@ Both are hosted on Render's free tier and monitored by UptimeRobot (pinging `/ac
 **Layout / ML service**
 - Python, Flask
 - NLP parsing of natural language descriptions into structured layout requests
-- SVG rendering with a fixed grid system (16px padding between cells — adjacency logic uses grid-slot comparison rather than pixel distance)
+- SVG rendering with a dynamic grid sizing system (16px padding between cells — adjacency logic uses grid-slot comparison rather than pixel distance)
+- Named style presets (Traditional, Open-Plan, Compact, Spacious) parameterizing grid aspect ratio, adjacency constraints, and outdoor emphasis
 
 **Database**
 - PostgreSQL (hosted on Render)
@@ -83,6 +91,8 @@ ARCHITEXT/
 │   └── .env              # not committed — see Environment Variables
 └── architext-flask/      # Flask layout/ML service (adjust to actual folder name)
 ```
+
+*(`layout_engine.py` exists as a single file at the project root — an earlier apparent duplicate was confirmed to be a stale VS Code tab, not a second file on disk.)*
 
 ---
 
@@ -141,15 +151,20 @@ Flask service expects the matching `X-Internal-Key` value to authenticate reques
 Deferred post-defense, tracked for future work:
 
 - [ ] Root-cause the Spring Boot → Flask proxy failure (confirm OOM vs. other cause; consider a paid Render tier or JVM tuning) and remove the direct-to-Flask workaround
+- [ ] Move `X-Internal-Key` out of hardcoded client-side value in `api.ts` into env-based config, to prevent silent key drift between builds and the Flask service
 - [ ] Tighten CORS — currently `setAllowedOriginPatterns(List.of("*"))` in `SecurityConfig.java`; remove the dead, unwired `architext.cors.allowed-origins` property or wire it in properly
 - [ ] Set up CI/CD via GitHub Actions
 - [ ] Replace `ddl-auto=update` with Flyway migrations
-- [ ] Confirm EAS Android APK build and test install
 - [ ] Apple Developer Program enrollment (Individual) for iOS distribution
 - [ ] Full API and deployment documentation
 - [ ] Remove/isolate Flask's legacy `flask_login` / SQLite auth remnants (Spring Boot JWT is the sole auth boundary in production)
 - [ ] Docker Compose setup for local multi-service development
 - [ ] CONTRIBUTING.md
+
+**Recently resolved:**
+- [x] Confirm EAS Android APK build and test install — built, installed on physical device, and verified across auth, layout generation, save, and history flows
+- [x] PDF export confirmed working end-to-end (via `expo-print@15.0.8`)
+- [x] Confirmed no duplicate `layout_engine.py` file exists
 
 ---
 
