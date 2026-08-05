@@ -73,9 +73,13 @@ export default function App() {
   // this doesn't affect the Android/iOS build at all.
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
-      const style = document.createElement("style");
-      style.innerHTML = `html, body, #root { height: 100%; overflow-y: auto; }`;
-      document.head.appendChild(style);
+      const id = "rnw-scroll-fix";
+      if (!document.getElementById(id)) {
+        const style = document.createElement("style");
+        style.id = id;
+        style.innerHTML = `html, body, #root { height: 100%; width: 100%; }`;
+        document.head.appendChild(style);
+      }
     }
   }, []);
 
