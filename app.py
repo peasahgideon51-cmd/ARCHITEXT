@@ -42,6 +42,8 @@ INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
 
 @app.before_request
 def check_internal_key():
+    if request.method == "OPTIONS":
+        return  # preflight requests never carry custom headers — let CORS handle these
     if request.path == "/health":
         return  # health checks stay unauthenticated
     if not INTERNAL_API_KEY:
