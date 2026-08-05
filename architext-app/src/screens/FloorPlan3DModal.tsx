@@ -64,9 +64,10 @@ export function FloorPlan3DModal({
           onLoadEnd={handleLoadEnd}
           onMessage={handleMessage}
           javaScriptEnabled
-          scrollEnabled={false}
-          bounces={false}
+          scrollEnabled={true}
+          bounces={true}
           overScrollMode="never"
+          nestedScrollEnabled={true}
           originWhitelist={["*"]}
           mixedContentMode="always"
         />
