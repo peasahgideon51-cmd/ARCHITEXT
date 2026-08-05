@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
-import React, { useState, useCallback } from "react";
-import { View } from "react-native";
+import React, { useState, useCallback, useEffect } from "react";
+import { View, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -66,6 +66,19 @@ export default function App() {
   const onLayout = useCallback(async () => {
     if (fontsLoaded) await SplashScreenExpo.hideAsync();
   }, [fontsLoaded]);
+
+  // Fixes RN Web scroll: without an explicit height chain, html/body/#root
+  // default to auto-height, so ScrollView content clips instead of
+  // scrolling in a browser. No-ops on native via the Platform check, so
+  // this doesn't affect the Android/iOS build at all.
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const style = document.createElement("style");
+      style.innerHTML = `html, body, #root { height: 100%; overflow-y: auto; }`;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   if (!fontsLoaded) return null;
 
   return (
